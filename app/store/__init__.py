@@ -1,7 +1,9 @@
 import typing
 
 from app.store.database.database import Database
-from app.store.rabbitmq.rabbitmq import Rabbitmq
+# from app.store.rabbitmq.rabbitmq import Rabbitmq
+
+from app.game.models import PlayerModel, GameModel, PlayerGameModel
 
 
 if typing.TYPE_CHECKING:
@@ -23,9 +25,9 @@ class Store:
 
 def setup_store(app: "Application"):
     app.database = Database(app)
-    app.rabbitmq = Rabbitmq(app)
+    # app.rabbitmq = Rabbitmq(app)
     app.on_startup.append(app.database.connect)
-    app.on_startup.append(app.rabbitmq.connect)
+    # app.on_startup.append(app.rabbitmq.connect)
     app.on_cleanup.append(app.database.disconnect)
-    app.on_cleanup.append(app.rabbitmq.disconnect)
+    # app.on_cleanup.append(app.rabbitmq.disconnect)
     app.store = Store(app)

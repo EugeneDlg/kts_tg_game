@@ -1,0 +1,20 @@
+user_token: OTY3NmVjYWYtZTJhNC00NzNhLTgwM2YtZGY3OTBkYTM3YWFhXzQ4NTE=
+
+session:
+  key: E8FMq-sVv4uk9iwYCa3FOxKq05_xv5V8uI1WlcoydIs=
+admin:
+  email: admin@admin.com
+  password: admin
+database:
+  host: 127.0.0.1 
+  port: 5432
+  user: kts
+  password: kts
+  database: kts
+rabbitmq:
+  host: 127.0.0.1
+  user: guest
+  password: guest
+bot:
+  token: vk1.a.k4yiNRRUw70giVm_uHQ0O5J7wW953re2eBzS9uVltEmcUdFqq9n5xPXGJfz4sLkyeVRsQsOfOocmdY_6KVPXKxWRdv0DpD62s3z7gTabyk2oCXP9M5IsdohbINPVU-yPNik4JLj0lqzp98I3rUL85SagDd-XTfFIZSxhyMzKXIdK6O-dqJXfmewqOBwY2bwHewDmmlpEAgRwsTxPpubDXg
+  group_id: 218878450
