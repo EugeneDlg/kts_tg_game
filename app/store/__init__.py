@@ -3,9 +3,6 @@ import typing
 from app.store.database.database import Database
 # from app.store.rabbitmq.rabbitmq import Rabbitmq
 
-from app.game.models import PlayerModel, GameModel, PlayerGameModel
-
-
 if typing.TYPE_CHECKING:
     from app.web.app import Application
 
@@ -16,9 +13,11 @@ class Store:
         from app.store.vk_api.accessor import VkApiAccessor
         from app.store.bot.manager import BotManager
         from app.store.admin.accessor import AdminAccessor
+        from app.store.game.accessor import GameAccessor
         self.quizzes = QuizAccessor(app)
         self.vk_api = VkApiAccessor(app)
         self.admins = AdminAccessor(app)
+        self.game = GameAccessor(app)
         self.bots_manager = BotManager(app)
         self.app = app
 

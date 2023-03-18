@@ -4,6 +4,8 @@ from typing import Optional
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 
+from app.game.models import Game, Player, GameModel, PlayerModel
+
 from app.store.database.sqlalchemy_base import db
 
 
@@ -55,16 +57,25 @@ class AnswerModel(db):
     questions = relationship("QuestionModel", back_populates="answers")
 
 
-models = {ThemeModel: Theme, QuestionModel: Question, AnswerModel: Answer}
+models = {ThemeModel: Theme, QuestionModel: Question, AnswerModel: Answer, GameModel: Game,
+          PlayerModel: Player}
 
 
-def to_dataclass(model_instance):
+def to_dataclass(model_instance, chain=[]):
+    # breakpoint()
     if model_instance is None:
-        return None
+        return
+    if not isinstance(model_instance, list):
+        if isinstance(model_instance, tuple(chain)):
+            return
+        else:
+            chain.append(type(model_instance))
     if isinstance(model_instance, list):
         lst = []
         for item in model_instance:
-            obj = to_dataclass(item)
+            obj = to_dataclass(item, chain)
+            if obj is None:
+                return
             lst.append(obj)
         return lst
     dataclass_model = models[type(model_instance)]
@@ -73,10 +84,12 @@ def to_dataclass(model_instance):
     dct = {}
     for field in fields:
         attr = model_attributes.get(field.name)
-        if isinstance(attr, list):
-            dct[field.name] = to_dataclass(attr)
-        elif type(attr) in models:
-            dct[field.name] = to_dataclass(attr)
+        if isinstance(attr, (list, tuple(models))):
+            dct[field.name] = to_dataclass(attr, chain)
+
+        # elif type(attr) in models:
+        #     dct[field.name] = to_dataclass(attr, chain)
         else:
             dct[field.name] = attr
+    chain.pop()
     return dataclass_model(**dct)

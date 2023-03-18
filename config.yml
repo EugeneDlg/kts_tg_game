@@ -8,8 +8,8 @@ admin:
 database:
   host: 127.0.0.1 
   port: 5432
-  user: kts
-  password: kts
+  user: kts_user
+  password: kts_pass
   database: kts
 rabbitmq:
   host: 127.0.0.1

@@ -10,15 +10,19 @@ from app.store.database.sqlalchemy_base import db
 
 @dataclass
 class Player:
-    user_id: int
+    id: int
+    vk_id: int
     name: str
     last_name: str
-    # score: "GameScoreDC"
+    games: list["Game"]
+
+    def __getitem__(self, item):
+        return getattr(self, item)
 
 
-# @dataclassd
-# class GameScoreDC:
-#     points: int
+@dataclass
+class GameScore:
+    points: int
 
 
 @dataclass
@@ -28,6 +32,9 @@ class Game:
     chat_id: int
     players: list[Player]
 
+    def __getitem__(self, item):
+        return getattr(self, item)
+
 
 class PlayerModel(db):
     __tablename__ = "players"
@@ -35,25 +42,25 @@ class PlayerModel(db):
         UniqueConstraint('name', 'last_name', name='_name_lastname_uc'),
     )
     id = Column(Integer, primary_key=True)
+    vk_id = Column(Integer, unique=True, nullable=False)
     name = Column(String, nullable=False)
     last_name = Column(String, nullable=False)
-    # game_id = Column(Integer, ForeignKey("games.id"), nullable=False)
-    games = relationship("GameModel", secondary="players_games", back_populates="players")
+    games = relationship("GameModel", secondary="game_score", back_populates="players")
 
 
 class GameModel(db):
     __tablename__ = "games"
     id = Column(Integer, primary_key=True)
     created_at = Column(DateTime, nullable=False)
-    chat_id = Column(String, unique=True, nullable=False)
-    # player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
-    players = relationship("PlayerModel", secondary="players_games", back_populates="games")
+    chat_id = Column(Integer, unique=True, nullable=False)
+    players = relationship("PlayerModel", secondary="game_score", back_populates="games")
 
 
-class PlayerGameModel(db):
-    __tablename__ = "players_games"
+class GameScoreModel(db):
+    __tablename__ = "game_score"
     player_id = Column(Integer, ForeignKey("players.id"), primary_key=True)
     game_id = Column(Integer, ForeignKey("games.id"), primary_key=True)
+    score = Column(Integer, nullable=False, default=0)
 
 
 
