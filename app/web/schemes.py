@@ -1,8 +1,5 @@
 from copy import deepcopy
 from marshmallow import Schema, fields
-import dataclasses
-from app.quiz.models import ThemeModel, QuestionModel, AnswerModel
-from app.quiz.models import Theme, Question, Answer
 
 
 class OkResponseSchema(Schema):

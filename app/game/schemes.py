@@ -25,8 +25,49 @@ class PlayerSchemaBeforeResponse(Schema):
     games = fields.Nested("GameSchemaNotNested", many=True, required=True)
 
 
+class PlayerSchemaForCreateBeforeResponse(Schema):
+    id = fields.Int(required=True)
+    vk_id = fields.Int(required=True)
+    name = fields.Str(required=True)
+    last_name = fields.Str(required=True)
+
+
 class PlayerResponseSchema(Schema):
     data = fields.Nested(PlayerSchemaBeforeResponse, required=True)
+
+
+class PlayerScoreSchemaBeforeResponse(Schema):
+    id = fields.Int(required=True)
+    vk_id = fields.Int(required=True)
+    name = fields.Str(required=True)
+    last_name = fields.Str(required=True)
+    scores = fields.Nested("ScoreSchema", many=True, required=True)
+
+
+class PlayerScoreSchema2BeforeResponse(Schema):
+    id = fields.Int(required=True)
+    vk_id = fields.Int(required=True)
+    name = fields.Str(required=True)
+    last_name = fields.Str(required=True)
+    scores = fields.Nested("ScoreSchemaNotNested", many=True, required=True)
+
+
+class PlayerScoreResponseSchema(Schema):
+    data = fields.Nested(PlayerScoreSchemaBeforeResponse, required=True)
+
+
+class ScoreSchema(Schema):
+    id = fields.Int(required=True)
+    vk_id = fields.Int(required=True)
+    # game = fields.Int(required=True)
+    points = fields.Int(required=True)
+    games = fields.Nested("GameSchemaNotNested", required=True)
+
+
+class ScoreSchemaNotNested(Schema):
+    id = fields.Int(required=True)
+    vk_id = fields.Int(required=True)
+    points = fields.Int(required=True)
 
 
 class GameSchema(Schema):
@@ -45,7 +86,14 @@ class GameSchemaBeforeResponse(Schema):
     id = fields.Int(required=True)
     chat_id = fields.Int(required=True)
     created_at = fields.DateTime(required=True)
-    players = fields.Nested(PlayerSchemaNotNested, many=True, required=True)
+    players = fields.Nested(PlayerScoreSchema2BeforeResponse, many=True, required=True)
+
+
+class GameSchemaForCreateBeforeResponse(Schema):
+    id = fields.Int(required=True)
+    chat_id = fields.Int(required=True)
+    created_at = fields.DateTime(required=True)
+    players = fields.Nested(PlayerSchemaForCreateBeforeResponse, many=True, required=True)
 
 
 class GameResponseSchema(Schema):

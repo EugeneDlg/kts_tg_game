@@ -14,7 +14,8 @@ class Player:
     vk_id: int
     name: str
     last_name: str
-    games: list["Game"]
+    # games: list["Game"]
+    scores: list["GameScore"]
 
     def __getitem__(self, item):
         return getattr(self, item)
@@ -23,6 +24,7 @@ class Player:
 @dataclass
 class GameScore:
     points: int
+    games: "Game"
 
 
 @dataclass
@@ -46,6 +48,8 @@ class PlayerModel(db):
     name = Column(String, nullable=False)
     last_name = Column(String, nullable=False)
     games = relationship("GameModel", secondary="game_score", back_populates="players")
+    scores = relationship("GameScoreModel", back_populates="players",
+                          viewonly=True,  cascade="all, delete")
 
 
 class GameModel(db):
@@ -54,13 +58,18 @@ class GameModel(db):
     created_at = Column(DateTime, nullable=False)
     chat_id = Column(Integer, unique=True, nullable=False)
     players = relationship("PlayerModel", secondary="game_score", back_populates="games")
+    scores = relationship("GameScoreModel", back_populates="games",
+                          viewonly=True,  cascade="all, delete")
+
 
 
 class GameScoreModel(db):
     __tablename__ = "game_score"
-    player_id = Column(Integer, ForeignKey("players.id"), primary_key=True)
-    game_id = Column(Integer, ForeignKey("games.id"), primary_key=True)
-    score = Column(Integer, nullable=False, default=0)
+    player_id = Column(Integer, ForeignKey("players.id", ondelete="CASCADE"), primary_key=True)
+    game_id = Column(Integer, ForeignKey("games.id", ondelete="CASCADE"), primary_key=True)
+    points = Column(Integer, nullable=False, default=0)
+    players = relationship("PlayerModel", back_populates="scores", viewonly=True)
+    games = relationship("GameModel", back_populates="scores", viewonly=True)
 
 
 

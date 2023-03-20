@@ -1,11 +1,9 @@
 from typing import Optional
-import json
 
 import asyncio
 from asyncio import Task, Future
 
 from app.store import Store
-from app.store.vk_api.dataclasses import Update, UpdateObject
 
 
 class Poller:
@@ -13,18 +11,15 @@ class Poller:
         self.store = store
         self.is_running = False
         self.poll_task: Optional[Task] = None
-        self.worker_tasks: Optional[list[Task]] = None
-        self.queue = asyncio.Queue()
-        self.worker_number = 1
+        self.sender_worker_tasks: Optional[list[Task]] = None
+        self.sender_queue = asyncio.Queue()
+        self.sender_worker_number = 1
 
     async def start(self):
         self.is_running = True
         self.poll_task = asyncio.create_task(self.poll())
-        # await self.poll_task
         self.poll_task.add_done_callback(self._done_callback)
-        await self.start_workers()
-        # await self.bot_consumers()
-        print("!!!AFTER CONSUMER")
+        await self.start_sender_workers()
 
     def _done_callback(self, future: Future):
         if future.exception():
@@ -37,31 +32,25 @@ class Poller:
         if self.poll_task:
             await asyncio.wait([self.poll_task], timeout=31)
         self.poll_task.cancel()
-        await self.queue.join()
-        for t in self.worker_tasks:
+        await self.sender_queue.join()
+        for t in self.sender_worker_tasks:
             t.cancel()
 
     async def poll(self):
         while self.is_running:
             updates = await self.store.vk_api.poll()
-            await self.publish_in_queue(updates)
+            await self.store.bots_manager.publish_in_bot_queue(updates)
 
-    async def publish_in_queue(self, updates: list):
-        for update in updates:
-            self.queue.put_nowait(update)
-        #     await self.store.app.rabbitmq.publish(json.dumps(update))
+    async def publish_in_sender_queue(self, update):
+        self.sender_queue.put_nowait(update)
 
-    async def start_workers(self):
-        print("111111")
-        self.worker_tasks = [
-            asyncio.create_task(self._worker()) for _ in range(self.worker_number)
+    async def start_sender_workers(self):
+        self.sender_worker_tasks = [
+            asyncio.create_task(self._sender_worker()) for _ in range(self.sender_worker_number)
         ]
 
-    async def _worker(self):
+    async def _sender_worker(self):
         while True:
-            print("!!!Before consume")
-            message = await self.queue.get()
-
-            # message = await self.store.app.rabbitmq.consume()
-            await self.store.bots_manager.handle_updates(message)
-            self.queue.task_done()
+            message = await self.sender_queue.get()
+            await self.store.vk_api.send_message(message)
+            self.sender_queue.task_done()

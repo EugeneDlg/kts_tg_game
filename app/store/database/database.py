@@ -6,13 +6,9 @@ from sqlalchemy.orm import sessionmaker
 from app.store.database.sqlalchemy_base import db
 
 # from app.admin.models import Admin
-# from app.quiz.models import Theme, Question
 
 if typing.TYPE_CHECKING:
     from app.web.app import Application
-
-# from sqlalchemy.orm import declarative_base
-# Base = declarative_base()
 
 
 class Database:
@@ -33,8 +29,8 @@ class Database:
         self._db = db
 
     async def connect(self, app: "Application"):
-        async with self._engine.begin() as session:
-            await session.run_sync(db.metadata.create_all)
+        # async with self._engine.begin() as session:
+        #     await session.run_sync(db.metadata.create_all)
         email = self.app.config.admin.email
         password = self.app.config.admin.password
         user = await self.app.store.admins.get_by_email(email)
@@ -42,8 +38,8 @@ class Database:
             await self.app.store.admins.create_admin(email, password)
 
     async def disconnect(self, app: "Application"):
-        async with self._engine.begin() as session:
-            await session.run_sync(db.metadata.drop_all)
+        # async with self._engine.begin() as session:
+        #     await session.run_sync(db.metadata.drop_all)
         await self._engine.dispose()
 
     async def clear(self):

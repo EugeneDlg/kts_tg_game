@@ -6,8 +6,8 @@ from typing import Optional
 from aiohttp.client import ClientSession
 
 from app.base.base_accessor import BaseAccessor
-from app.store.vk_api.dataclasses import Message, Update, UpdateMessage, UpdateObject
 from app.store.vk_api.poller import Poller
+from app.store.bot.dataclassess import Message
 
 if typing.TYPE_CHECKING:
     from app.web.app import Application
@@ -23,16 +23,12 @@ class VkApiAccessor(BaseAccessor):
         self.ts: Optional[int] = None
 
     async def connect(self, app: "Application"):
-        # TODO: добавить создание aiohttp ClientSession,
-        #  получить данные о long poll сервере с помощью метода groups.getLongPollServer
-        #  вызвать метод start у Poller
         self.session = ClientSession()
         self.poller = Poller(app.store)
         await self._get_long_poll_service()
         await self.poller.start()
 
     async def disconnect(self, app: "Application"):
-        # TODO: закрыть сессию и завершить поллер
         if self.poller:
             await self.poller.stop()
         if self.session:
@@ -73,28 +69,14 @@ class VkApiAccessor(BaseAccessor):
             self.logger.info(data)
             self.ts = data["ts"]
             raw_updates = data.get("updates", [])
-            # updates = []
-            # for update in raw_updates:
-            #     updates.append(
-            #         Update(
-            #             type=update["type"],
-            #             object=UpdateObject(
-            #                 id=update["object"]["message"]["id"],
-            #                 user_id=update["object"]["message"]["from_id"],
-            #                 body=update["object"]["message"]["text"],
-            #               ),
-            #         )
-            #     )
-
         return raw_updates
-        # await self.app.store.bots_manager.handle_updates(updates)
 
     async def send_message(self, message: Message) -> None:
         url = self._build_query(
             host='https://api.vk.com/method/',
             method="messages.send",
             params={"access_token": self.app.config.bot.token,
-                    "message": "OK",
+                    "message": message.text,
                     "peer_id": 2000000001,
                     "random_id": random.randint(1, 16000)}
         )
