@@ -4,14 +4,12 @@ from aiohttp.web_exceptions import HTTPUnauthorized,  HTTPForbidden
 
 
 class AuthRequiredMixin:
-    # TODO: можно использовать эту mixin-заготовку для реализации проверки авторизации во View
     async def check_authentication(self):
         session = await get_session(self.request)
         if session.new:
             raise HTTPUnauthorized
         session_email = session.get("email")
         session_time = session.get("visit_time")
-        breakpoint()
         if not all([session_time, session_email]):
             raise HTTPUnauthorized
         delta = dt.timedelta(minutes=1)

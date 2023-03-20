@@ -81,7 +81,5 @@ class VkApiAccessor(BaseAccessor):
                     "random_id": random.randint(1, 16000)}
         )
         print("url", url)
-        print("session is ", self.session)
         async with self.session.get(url) as response:
             resp_json = await response.json()
-            print("res1 ", resp_json)

@@ -10,6 +10,8 @@ from app.store.database.sqlalchemy_base import db
 if typing.TYPE_CHECKING:
     from app.web.app import Application
 
+TABLES = ["admins", "games", "players"]
+
 
 class Database:
     def __init__(self, app: "Application"):
@@ -44,8 +46,7 @@ class Database:
 
     async def clear(self):
         async with self.session.begin() as session:
-            await session.execute(text(f"""TRUNCATE TABLE themes CASCADE;"""))
-            await session.execute(text(f"""TRUNCATE TABLE admins CASCADE;"""))
-            for table in self._db.metadata.tables:
+            for table in TABLES:
+                await session.execute(text(f"TRUNCATE TABLE {table} CASCADE"))
                 await session.execute(text(f"ALTER SEQUENCE {table}_id_seq RESTART WITH 1"))
 

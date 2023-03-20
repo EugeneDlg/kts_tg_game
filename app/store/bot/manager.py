@@ -46,8 +46,9 @@ class BotManager:
 
     async def stop(self):
         await self.bot_queue.join()
-        for t in self.bot_worker_tasks:
-            t.cancel()
+        if self.bot_worker_tasks is not None:
+            for t in self.bot_worker_tasks:
+                t.cancel()
 
     async def start_bot_workers(self):
         self.bot_worker_tasks = [

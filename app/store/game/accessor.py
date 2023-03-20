@@ -10,7 +10,6 @@ from app.game.models import PlayerModel, GameModel, Player, Game, GameScoreModel
 class GameAccessor(BaseAccessor):
     async def create_game(self, chat_id: int, created_at: datetime,
                           players: list[Player], new_players: list[Player]) -> Game:
-        breakpoint()
         async with self.app.database.session.begin() as session:
             new_players_model = [
                 PlayerModel(
@@ -23,24 +22,27 @@ class GameAccessor(BaseAccessor):
             session.add(game)
         return to_dataclass(game)
 
-    async def get_game_(self, chat_id: int):
-        async with self.app.database.session.begin() as session:
-            game = (await session.execute(select(GameModel, PlayerModel)
-                                          .where(GameModel.chat_id == chat_id)
-                                          .options(joinedload(GameModel.players))
-                                          .options(joinedload(PlayerModel.scores)))).scalar()
-        return game
-
     # async def get_game_(self, chat_id: int):
     #     async with self.app.database.session.begin() as session:
-    #         game = (await session.execute(select(GameModel, GameScoreModel)
+    #         game = (await session.execute(select(GameModel, PlayerModel)
     #                                       .where(GameModel.chat_id == chat_id)
-    #                                       .options(joinedload(GameModel.scores))
-    #                                       .options(joinedload(GameScoreModel.players)))).scalar()
+    #                                       .options(joinedload(GameModel.players))
+    #                                       .options(joinedload(PlayerModel.scores)))).scalar()
     #     return game
 
+    async def get_game_(self, chat_id: int):
+        async with self.app.database.session.begin() as session:
+            game = (await session.execute(select(GameModel, GameScoreModel)
+                                          .where(GameModel.chat_id == chat_id)
+                                          .options(joinedload(GameModel.scores))
+                                          .options(joinedload(GameScoreModel.players)))).scalar()
+        return game
+
     async def get_game(self, chat_id: int):
-        return to_dataclass(await self.get_game_(chat_id=chat_id))
+        game = await self.get_game_(chat_id=chat_id)
+        if game is not None:
+            return game.to_dc()
+        return None
 
     async def list_games(self):
         async with self.app.database.session.begin() as session:

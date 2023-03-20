@@ -33,7 +33,6 @@ HTTP_ERROR_CODES = {
 
 @middleware
 async def error_handling_middleware(request: "Request", handler):
-    print("WEB middlewares error_handling_middleware")
     try:
         response = await handler(request)
         return response

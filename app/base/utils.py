@@ -7,6 +7,13 @@ models = {GameModel: Game,
 
 
 def to_dataclass(model_instance, chain=[]):
+    """
+    Метод для прямого маппинга моделей SqlAlchemy в модели Dataclass непосредственно
+    по именам атрибутов
+    :param model_instance: Модель SqlAlchemy
+    :param chain: стэк моделей при рекурсивных вызовах для избежания зацикленности
+    :return: Модель Dataclass
+    """
     if model_instance is None:
         return
     if not isinstance(model_instance, list):

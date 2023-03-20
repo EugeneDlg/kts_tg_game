@@ -61,6 +61,21 @@ class GameModel(db):
     scores = relationship("GameScoreModel", back_populates="games",
                           viewonly=True,  cascade="all, delete")
 
+    def to_dc(self):
+        players = []
+        for score in self.scores:
+            player = score.players
+            p = score.points
+            s = GameScore(points=p, games=None)
+            players.append(Player(id=player.id, vk_id=player.vk_id,
+                                  name=player.name, last_name=player.last_name,
+                                  scores=[s]))
+        return Game(
+            id=self.id,
+            created_at=self.created_at,
+            chat_id=self.chat_id,
+            players=players
+        )
 
 
 class GameScoreModel(db):
@@ -70,17 +85,6 @@ class GameScoreModel(db):
     points = Column(Integer, nullable=False, default=0)
     players = relationship("PlayerModel", back_populates="scores", viewonly=True)
     games = relationship("GameModel", back_populates="scores", viewonly=True)
-
-
-
-
-
-# class GameScoreModel(db):
-#     id = Column(Integer, primary_key=True)
-#     player = Column(Integer, ForeignKey("players.user_id", ondelete="CASCADE"), nullable=False)
-#     points = Column(Integer, nullable=False)
-
-
 
 
 

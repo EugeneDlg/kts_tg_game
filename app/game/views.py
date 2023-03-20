@@ -45,7 +45,6 @@ class GameAddView(View, AuthRequiredMixin):
             vk_id = player["vk_id"]
             name = player["name"]
             last_name = player["last_name"]
-            breakpoint()
             db_player_by_id = await self.store.game.get_player_by_vk_id_(vk_id=vk_id)
             db_player_by_names = await self.store.game.get_player_by_names_(name=name, last_name=last_name)
             if db_player_by_id is None and db_player_by_names is None:
@@ -74,7 +73,6 @@ class GameGetView(View, AuthRequiredMixin):
     @response_schema(GameResponseSchema, 200)
     @check_auth
     async def get(self):
-        # breakpoint()
         query = self.request.rel_url.query
         chat_id = query.get("chat_id")
         if chat_id is None or not chat_id.isnumeric():
@@ -141,7 +139,6 @@ class PlayerGetView(View, AuthRequiredMixin):
         player = await self.store.game.get_player_by_vk_id(vk_id=int(vk_id))
         if player is None:
             raise HTTPNotFound(text="Player not found")
-        breakpoint()
         return json_response(data=PlayerScoreSchemaBeforeResponse().dump(player))
 
     async def post(self):

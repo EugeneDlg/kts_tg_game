@@ -33,8 +33,9 @@ class Poller:
             await asyncio.wait([self.poll_task], timeout=31)
         self.poll_task.cancel()
         await self.sender_queue.join()
-        for t in self.sender_worker_tasks:
-            t.cancel()
+        if self.sender_worker_tasks is not None:
+            for t in self.sender_worker_tasks:
+                t.cancel()
 
     async def poll(self):
         while self.is_running:
