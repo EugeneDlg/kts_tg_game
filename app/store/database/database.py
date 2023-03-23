@@ -42,6 +42,7 @@ class Database:
     async def disconnect(self, app: "Application"):
         # async with self._engine.begin() as session:
         #     await session.run_sync(db.metadata.drop_all)
+        await self.clear()
         await self._engine.dispose()
 
     async def clear(self):

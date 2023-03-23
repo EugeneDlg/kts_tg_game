@@ -22,8 +22,12 @@ class VkApiAccessor(BaseAccessor):
         self.poller: Optional[Poller] = None
         self.ts: Optional[int] = None
 
-    async def connect(self, app: "Application"):
+    async def connect(self, app: "Application", is_poller=True):
         self.session = ClientSession()
+        if is_poller:
+            await self.start(app)
+
+    async def start(self, app: "Application"):
         self.poller = Poller(app.store)
         await self._get_long_poll_service()
         await self.poller.start()
@@ -76,7 +80,7 @@ class VkApiAccessor(BaseAccessor):
             host='https://api.vk.com/method/',
             method="messages.send",
             params={"access_token": self.app.config.bot.token,
-                    "message": message.text,
+                    "message": message["text"],
                     "peer_id": 2000000001,
                     "random_id": random.randint(1, 16000)}
         )

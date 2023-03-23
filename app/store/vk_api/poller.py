@@ -19,7 +19,7 @@ class Poller:
         self.is_running = True
         self.poll_task = asyncio.create_task(self.poll())
         self.poll_task.add_done_callback(self._done_callback)
-        await self.start_sender_workers()
+        # await self.start_sender_workers()
 
     def _done_callback(self, future: Future):
         if future.exception():
@@ -32,15 +32,24 @@ class Poller:
         if self.poll_task:
             await asyncio.wait([self.poll_task], timeout=31)
         self.poll_task.cancel()
-        await self.sender_queue.join()
-        if self.sender_worker_tasks is not None:
-            for t in self.sender_worker_tasks:
-                t.cancel()
+        await self.store.app.rabbitmq.disconnect()
+        # await self.sender_queue.join()
+        # if self.sender_worker_tasks is not None:
+        #     for t in self.sender_worker_tasks:
+        #         t.cancel()
 
     async def poll(self):
         while self.is_running:
             updates = await self.store.vk_api.poll()
-            await self.store.bots_manager.publish_in_bot_queue(updates)
+            # await self.store.bots_manager.publish_in_bot_queue(updates)
+            await self.publish_in_queue(updates)
+
+    async def publish_in_queue(self, updates: list):
+        for update in updates:
+            await self.store.app.rabbitmq.publish(update)
+
+
+
 
     async def publish_in_sender_queue(self, update):
         self.sender_queue.put_nowait(update)
