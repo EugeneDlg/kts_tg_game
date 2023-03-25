@@ -7,7 +7,7 @@ class PlayerSchema(Schema):
     vk_id = fields.Int(required=True)
     name = fields.Str(required=True)
     last_name = fields.Str(required=True)
-    # games = fields.Nested("GameSchemaNotNested", many=True, required=False)
+    games = fields.Nested("GameSchemaNotNested", many=True, required=False)
 
 
 class PlayerSchemaNotNested(Schema):
@@ -77,9 +77,9 @@ class GameSchema(Schema):
 
 
 class GameSchemaNotNested(Schema):
-    id = fields.Int(required=True)
+    id = fields.Int(required=False)
     chat_id = fields.Int(required=True)
-    created_at = fields.DateTime(required=True)
+    created_at = fields.DateTime(required=False)
 
 
 class GameSchemaBeforeResponse(Schema):

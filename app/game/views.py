@@ -114,8 +114,17 @@ class PlayerAddView(View, AuthRequiredMixin):
         vk_id = data["vk_id"]
         name = data["name"]
         last_name = data["last_name"]
+        games = data["games"]
+        game_models = []
+        for game in games:
+            chat_id = game["chat_id"]
+            game_model = await self.store.game.get_game_(chat_id=chat_id)
+            if game_model is None:
+                raise HTTPBadRequest(text="Game with this chat_id doesn't exist")
+            game_models.append(game_model)
+        breakpoint()
         player = await self.store.game.create_player(
-            vk_id=vk_id, name=name, last_name=last_name
+            vk_id=vk_id, name=name, last_name=last_name, games=game_models
         )
         return json_response(data=PlayerSchemaBeforeResponse().dump(player))
 

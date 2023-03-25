@@ -54,3 +54,12 @@ class BotManager:
         self.bot_worker_tasks = [
             asyncio.create_task(self._bot_worker()) for _ in range(self.bot_worker_number)
         ]
+
+    async def handle_updates(self, update: Update):
+        if update.type == 'message_event':
+            await self._event_handler(update.object)
+        elif update.type == 'message_new':
+            await self._message_handler(update.object)
+
+
+

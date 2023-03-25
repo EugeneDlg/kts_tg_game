@@ -54,9 +54,10 @@ class GameAccessor(BaseAccessor):
 
     async def create_player(
             self, vk_id: int, name: str,
-            last_name: str) -> Player:
+            last_name: str, games: list[Game]) -> Player:
+
         async with self.app.database.session.begin() as session:
-            player = PlayerModel(vk_id=vk_id, name=name, last_name=last_name)
+            player = PlayerModel(vk_id=vk_id, name=name, last_name=last_name, games=games)
             session.add(player)
         return to_dataclass(player)
 

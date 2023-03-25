@@ -71,15 +71,52 @@ class VkApiAccessor(BaseAccessor):
             raw_updates = data.get("updates", [])
         return raw_updates
 
-    async def send_message(self, message: Message) -> None:
+    async def send_message(self, **params) -> None:
+        params["access_token"] = self.app.config.bot.token
+        params["random_id"] = random.randint(1, 16000)
+        params["peer_id"] = 2000000001
         url = self._build_query(
             host='https://api.vk.com/method/',
             method="messages.send",
-            params={"access_token": self.app.config.bot.token,
-                    "message": message.text,
-                    "peer_id": 2000000001,
-                    "random_id": random.randint(1, 16000)}
+            params=params
         )
         print("url", url)
         async with self.session.get(url) as response:
             resp_json = await response.json()
+
+    @staticmethod
+    async def build_keyboard(
+            buttons: list[list[dict]],
+            params: Optional[dict] = None) -> dict:
+        if params:
+            keyboard = params
+        else:
+            keyboard = {}
+        keyboard["buttons"] = buttons
+        return keyboard
+
+    @staticmethod
+    async def make_button(params: dict, color: Optional[str] = None) -> dict:
+        button = {
+            "action": params
+        }
+        if color:
+            button["color"] = color
+        return button
+
+    async def create_game(self):
+        message = "Create a game"
+        start_button = await self.app.store.vk_api.make_button(
+            {"type": "callback",
+             "payload": {"command": "start"},
+             "label": "Create a game!"},
+            color="primary",
+        )
+        buttons = [[start_button], ]
+        keyboard = await self.app.store.vk_api.build_keyboard(
+            buttons=buttons
+        )
+        await self.app.store.vk_api.send_message(
+            message=message,
+            keyboard=json.dumps(keyboard)
+        )
