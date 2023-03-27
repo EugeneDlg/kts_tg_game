@@ -14,17 +14,19 @@ from app.game.schemes import (
     GameListResponseSchema,
     GameListSchemaBeforeResponse,
     PlayerSchema,
+    PlayerGameLinkSchema,
+    PlayerGameLinkSchemaBeforeResponse,
+    PlayerGameLinkResponseSchema,
     PlayerSchemaBeforeResponse,
     PlayerResponseSchema,
     PlayerScoreResponseSchema,
     PlayerScoreSchemaBeforeResponse
 )
 from app.web.app import View
-from app.web.mixins import AuthRequiredMixin
 from app.web.utils import json_response, check_auth
 
 
-class GameAddView(View, AuthRequiredMixin):
+class GameAddView(View):
     @docs(tags=['game'],
           summary='Adding a new game',
           description='Adding a new game')
@@ -45,8 +47,11 @@ class GameAddView(View, AuthRequiredMixin):
             vk_id = player["vk_id"]
             name = player["name"]
             last_name = player["last_name"]
-            db_player_by_id = await self.store.game.get_player_by_vk_id_(vk_id=vk_id)
-            db_player_by_names = await self.store.game.get_player_by_names_(name=name, last_name=last_name)
+            db_player_by_id = await self.store.game.get_player_by_vk_id_sql_model(vk_id=vk_id)
+            db_player_by_names = await self.store.game.get_player_by_names_sql_model(
+                name=name,
+                last_name=last_name
+            )
             if db_player_by_id is None and db_player_by_names is None:
                 new_players.append(player)
                 continue
@@ -65,7 +70,7 @@ class GameAddView(View, AuthRequiredMixin):
         raise HTTPMethodNotAllowed("get", ["post"], text="not implemented")
 
 
-class GameGetView(View, AuthRequiredMixin):
+class GameGetView(View):
     @docs(tags=['game'],
           summary='Get a certain game',
           description='Get a certain game')
@@ -102,7 +107,7 @@ class GameListView(View):
         raise HTTPMethodNotAllowed("post", ["get"], text="not implemented")
 
 
-class PlayerAddView(View, AuthRequiredMixin):
+class PlayerAddView(View):
     @docs(tags=['player'],
           summary='Adding a new player',
           description='Adding a new player')
@@ -118,11 +123,10 @@ class PlayerAddView(View, AuthRequiredMixin):
         game_models = []
         for game in games:
             chat_id = game["chat_id"]
-            game_model = await self.store.game.get_game_(chat_id=chat_id)
+            game_model = await self.store.game.get_game_sql_model(chat_id=chat_id)
             if game_model is None:
                 raise HTTPBadRequest(text="Game with this chat_id doesn't exist")
             game_models.append(game_model)
-        breakpoint()
         player = await self.store.game.create_player(
             vk_id=vk_id, name=name, last_name=last_name, games=game_models
         )
@@ -132,7 +136,7 @@ class PlayerAddView(View, AuthRequiredMixin):
         raise HTTPMethodNotAllowed("get", ["post"], text="not implemented")
 
 
-class PlayerGetView(View, AuthRequiredMixin):
+class PlayerGetView(View):
     @docs(tags=['player'],
           summary='Get a certain player',
           description='Get a certain player')
@@ -154,7 +158,7 @@ class PlayerGetView(View, AuthRequiredMixin):
         raise HTTPMethodNotAllowed("post", ["get"], text="not implemented")
 
 
-class LatestGameGetView(View, AuthRequiredMixin):
+class LatestGameGetView(View):
     @docs(tags=['game'],
           summary='Get a latest game',
           description='Get a latest game')
@@ -170,3 +174,30 @@ class LatestGameGetView(View, AuthRequiredMixin):
 
     async def post(self):
         raise HTTPMethodNotAllowed("post", ["get"], text="not implemented")
+
+
+class PlayerGameLinkView(View):
+    @docs(tags=['player'],
+          summary='Adding an existing player to an exiting game',
+          description='Adding an existing player to an exiting game')
+    @request_schema(PlayerGameLinkSchema)
+    @response_schema(PlayerGameLinkResponseSchema, 200)
+    @check_auth
+    async def post(self):
+        data = self.request["data"]
+        vk_id = data["vk_id"]
+        chat_id = data["chat_id"]
+        breakpoint()
+        game_model = await self.store.game.get_game_not_nested(chat_id=chat_id)
+        if game_model is None:
+            raise HTTPBadRequest(text="Game with this chat_id doesn't exist")
+        player_model = await self.store.game.get_player_by_vk_id_not_nested(vk_id=vk_id)
+        if player_model is None:
+            raise HTTPBadRequest(text="Player with this vk_id doesn't exist")
+        link = await self.store.game.link_player_to_game(
+            player_model=player_model, game_model=game_model
+        )
+        return json_response(data=PlayerGameLinkSchemaBeforeResponse.dump(link))
+
+    async def get(self):
+        raise HTTPMethodNotAllowed("get", ["post"], text="not implemented")

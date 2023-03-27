@@ -6,7 +6,8 @@ from app.game.views import (
     GameListView,
     LatestGameGetView,
     PlayerAddView,
-    PlayerGetView
+    PlayerGetView,
+    PlayerGameLinkView
 )
 
 if typing.TYPE_CHECKING:
@@ -20,4 +21,5 @@ def setup_routes(app: "Application"):
     app.router.add_view("/game.latest", LatestGameGetView)
     app.router.add_view("/player.create", PlayerAddView)
     app.router.add_view("/player.get", PlayerGetView)
+
 

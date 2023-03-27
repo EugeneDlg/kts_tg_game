@@ -73,7 +73,7 @@ def check_auth(func):
         session_time = session.get("visit_time")
         if not all([session_time, session_email]):
             raise HTTPUnauthorized
-        delta = dt.timedelta(days=1)
+        delta = dt.timedelta(days=7)
         if dt.datetime.now() - dt.datetime.fromtimestamp(session_time) > delta:
             raise HTTPUnauthorized
         user = await self.request.app.store.admins.get_by_email(session_email)

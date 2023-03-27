@@ -55,6 +55,7 @@ class PlayerModel(db):
 class GameModel(db):
     __tablename__ = "games"
     id = Column(Integer, primary_key=True)
+    status = Column(String, nullable=False, default="registered")
     created_at = Column(DateTime, nullable=False)
     chat_id = Column(Integer, unique=True, nullable=False)
     players = relationship("PlayerModel", secondary="game_score", back_populates="games")

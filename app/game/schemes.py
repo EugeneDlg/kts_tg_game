@@ -56,6 +56,20 @@ class PlayerScoreResponseSchema(Schema):
     data = fields.Nested(PlayerScoreSchemaBeforeResponse, required=True)
 
 
+class PlayerGameLinkSchema(Schema):
+    vk_id = fields.Int(required=True)
+    chat_id = fields.Int(required=True)
+
+
+class PlayerGameLinkSchemaBeforeResponse(Schema):
+    vk_id = fields.Int(required=True)
+    chat_id = fields.Int(required=True)
+
+
+class PlayerGameLinkResponseSchema(Schema):
+    data = fields.Nested(PlayerGameLinkSchemaBeforeResponse, required=True)
+
+
 class ScoreSchema(Schema):
     id = fields.Int(required=True)
     vk_id = fields.Int(required=True)

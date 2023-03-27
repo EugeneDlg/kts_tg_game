@@ -35,7 +35,7 @@ class AdminLoginView(View):
         raise HTTPMethodNotAllowed("get", ["post"], text="not implemented")
 
 
-class AdminCurrentView(View, AuthRequiredMixin):
+class AdminCurrentView(View):
     @response_schema(AdminResponseSchema, 200)
     @check_auth
     async def get(self):
