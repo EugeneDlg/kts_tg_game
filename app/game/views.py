@@ -47,11 +47,12 @@ class GameAddView(View):
             vk_id = player["vk_id"]
             name = player["name"]
             last_name = player["last_name"]
-            db_player_by_id = await self.store.game.get_player_by_vk_id_sql_model(vk_id=vk_id)
-            db_player_by_names = await self.store.game.get_player_by_names_sql_model(
+            db_player_by_id = await self.store.game.get_player_by_vk_id(vk_id=vk_id)
+            db_player_by_names = await self.store.game.get_player_by_names(
                 name=name,
                 last_name=last_name
             )
+            breakpoint()
             if db_player_by_id is None and db_player_by_names is None:
                 new_players.append(player)
                 continue
@@ -123,7 +124,7 @@ class PlayerAddView(View):
         game_models = []
         for game in games:
             chat_id = game["chat_id"]
-            game_model = await self.store.game.get_game_sql_model(chat_id=chat_id)
+            game_model = await self.store.game.get_game(chat_id=chat_id, status="registered")
             if game_model is None:
                 raise HTTPBadRequest(text="Game with this chat_id doesn't exist")
             game_models.append(game_model)

@@ -32,6 +32,10 @@ class Game:
     id: int
     created_at: datetime
     chat_id: int
+    status: str
+    wait_status: str
+    my_points: int
+    players_points: int
     players: list[Player]
 
     def __getitem__(self, item):

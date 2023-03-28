@@ -10,22 +10,24 @@ from app.game.models import PlayerModel, GameModel, Player, Game, GameScoreModel
 
 class GameAccessor(BaseAccessor):
     async def create_game(self, chat_id: int, created_at: datetime,
-                          players: list[Player], new_players: list[Player]) -> Game:
+                          players: list[Player], new_players: list[dict]) -> Game:
+        db_players = []
+        for player in players:
+            db_players.append(await self._get_player_by_vk_id_sql_model(player.vk_id))
+        new_players_models = [
+            PlayerModel(
+                name=player["name"], last_name=player["last_name"], vk_id=player["vk_id"]
+            ) for player in new_players
+        ]
+        db_players.extend(new_players_models)
         async with self.app.database.session.begin() as session:
-            new_players_model = [
-                PlayerModel(
-                    name=player["name"], last_name=player["last_name"], vk_id=player["vk_id"]
-                ) for player in new_players
-            ]
-            players.extend(new_players_model)
-
-            game = GameModel(chat_id=chat_id, players=players, created_at=created_at)
+            game = GameModel(chat_id=chat_id, players=db_players, created_at=created_at)
             session.add(game)
         return to_dataclass(game)
 
-    async def get_game_sql_model(self, chat_id: int, status: str = None) -> GameModel:
+    async def _get_game_sql_model(self, chat_id: int, status: str = None) -> GameModel:
         async with self.app.database.session.begin() as session:
-            breakpoint()
+            # breakpoint()
             if status is None:
                 game = (await session.execute(select(GameModel, PlayerModel, GameScoreModel)
                                               .where(GameModel.chat_id == chat_id)
@@ -50,7 +52,7 @@ class GameAccessor(BaseAccessor):
     #     return game
 
     async def get_game(self, chat_id: int, status: str = None) -> Optional[Game]:
-        game = await self.get_game_sql_model(chat_id=chat_id, status=status)
+        game = await self._get_game_sql_model(chat_id=chat_id, status=status)
         if game is not None:
             return to_dataclass(game)
         return None
@@ -89,12 +91,15 @@ class GameAccessor(BaseAccessor):
     async def create_player(
             self, vk_id: int, name: str,
             last_name: str, games: list[Game]) -> Player:
+        db_games = []
+        for game in games:
+            db_games.append(await self._get_game_sql_model(chat_id=game.chat_id, status=game.status))
         async with self.app.database.session.begin() as session:
-            player = PlayerModel(vk_id=vk_id, name=name, last_name=last_name, games=games)
+            player = PlayerModel(vk_id=vk_id, name=name, last_name=last_name, games=db_games)
             session.add(player)
         return to_dataclass(player)
 
-    async def get_player_by_vk_id_sql_model(self, vk_id: int) -> PlayerModel:
+    async def _get_player_by_vk_id_sql_model(self, vk_id: int) -> PlayerModel:
         async with self.app.database.session.begin() as session:
             player = (await session.execute(select(PlayerModel, GameScoreModel)
                                             .where(PlayerModel.vk_id == vk_id)
@@ -103,9 +108,9 @@ class GameAccessor(BaseAccessor):
         return player
 
     async def get_player_by_vk_id(self, vk_id: int) -> Player:
-        return to_dataclass(await self.get_player_by_vk_id_sql_model(vk_id=vk_id))
+        return to_dataclass(await self._get_player_by_vk_id_sql_model(vk_id=vk_id))
 
-    async def get_player_by_names_sql_model(self, name: str, last_name: str) -> PlayerModel:
+    async def _get_player_by_names_sql_model(self, name: str, last_name: str) -> PlayerModel:
         async with self.app.database.session.begin() as session:
             player = (await session.execute(select(PlayerModel, GameScoreModel)
                                             .where(PlayerModel.name == name
@@ -115,7 +120,7 @@ class GameAccessor(BaseAccessor):
         return player
 
     async def get_player_by_names(self, name: str, last_name: str) -> Player:
-        return to_dataclass(await self.get_player_by_names_sql_model(name=name, last_name=last_name))
+        return to_dataclass(await self._get_player_by_names_sql_model(name=name, last_name=last_name))
 
     async def get_player_list(self, chat_id: str) -> list[PlayerModel]:
         """
@@ -128,7 +133,7 @@ class GameAccessor(BaseAccessor):
             players_ = await session.execute(select(PlayerModel, GameModel)
                                              .where(GameModel.chat_id == chat_id)
                                              .options(joinedload(PlayerModel.games)))
-        breakpoint()
+
         players = players_.scalars().unique().all()
         return players
 

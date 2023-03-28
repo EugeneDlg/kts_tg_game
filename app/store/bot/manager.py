@@ -1,4 +1,5 @@
 import datetime
+import random
 import typing
 from typing import Optional
 import json
@@ -26,6 +27,7 @@ THINKING = "thinking"
 THINKING10 = "thinking10"
 SPEAKER = "speaker"
 ANSWER = "answer"
+EXPIRED = "expired"
 
 
 class BotManager:
@@ -158,8 +160,9 @@ class BotManager:
     async def _event_handler(self, event: Event):
         if event.command == "register":
             # breakpoint()
-            game = await self.app.store.game.get_game_sql_model(chat_id=event.peer_id, status=REGISTERED)
-            player = await self.app.store.game.get_player_by_vk_id_sql_model(vk_id=event.user_id)
+            game = await self.app.store.game.get_game(chat_id=event.peer_id, status=REGISTERED)
+            player = await self.app.store.game.get_player_by_vk_id(vk_id=event.user_id)
+            # retrieve info about a user by VK API
             user = await self.app.store.vk_api.get_vk_user_by_id(user_id=event.user_id)
             players = []
             new_players = []
@@ -184,14 +187,14 @@ class BotManager:
             # if game has been already created, we add a player to it
             else:
                 players = game.players
-                # if player is already added to this game and he clicks Register button again
+                # if player is already added to this game, and he clicks Register button again
                 if player is not None and event.user_id in [player.vk_id for player in players]:
                     text = f"{full_name}, Вы уже зарегистрированы как участник в этой игре. " \
                            "Ждём подключения остальных участников..."
                     message = Message(text=text,
                                       user_id=event.user_id,
                                       peer_id=event.peer_id)
-                # if a player is new at all or he was added but to another game
+                # if a player is new at all, or he was added but to another game
                 else:
                     # if he is a new player at all
                     if player is None:
@@ -199,18 +202,34 @@ class BotManager:
                                                                          name=user["name"],
                                                                          last_name=user["last_name"],
                                                                          games=[game])
-                    # if player is already added, but not to this game, we add him to this game
+                    # if a player is already added, but not to this game, we add him to this game
                     else:
                         link = await self.app.store.game.link_player_to_game(
                             player_id=player.id, game_id=game.id
                         )
-                    if len(game.players) + 1 == PLAYERS_AMOUNT:
-                        text = "Все участники в сборе. Начинаем игру."
-                        players = self.app.store.game.get_player_list(event.peer_id)
-                        breakpoint()
+                    # refresh game instance after adding a new player
+                    game = await self.app.store.game.get_game(
+                        chat_id=event.peer_id, status=REGISTERED
+                    )
+                    # if all players are registered for the game
+                    if len(game.players) == PLAYERS_AMOUNT:
+                        captain = random.choice(game.players)
+                        text = "Все участники в сборе. Начинаем игру. " \
+                               f"Капитаном выбран: {captain.name} {captain.last_name}. " \
+                               "Он будет назначать отвечающего на вопрос в каждом раунде." \
+                               "Время обсуждения вопроса - 2 минуты. Вы готовы?" \
+                               "Капитан нажимает кнопку старта."
                         message = self.start_game_message(text=text,
-                                                          user_id=event.user_id,
+                                                          user_id=captain.vk_id,
                                                           peer_id=event.peer_id)
+                        # await self.app.store.vk_api.publish_in_sender_queue(message)
+                        # # a text for other players
+                        # for player in game.players:
+                        #     if player is not captain:
+                        #         message = Message(text=text, user_id=player.vk_id,
+                        #                           peer_id=event.peer_id)
+                        #         await self.app.store.vk_api.publish_in_sender_queue(message)
+                        # return
                     else:
                         message = Message(text=f"{full_name}, Вы зарегистрированы."
                                                " Ждем остальных участников.",
@@ -224,14 +243,14 @@ class BotManager:
         full_name = f'{user["name"]} {user["last_name"]}'
         text = message.text.strip().lower()
         if text == "hello":
-            game = await self.app.store.game.get_game_sql_model(chat_id=message.peer_id, status=ACTIVE)
+            game = await self.app.store.game.get_game(chat_id=message.peer_id, status=ACTIVE)
             if game is not None:
                 message.text = f"{full_name}, Вы уже играете! Лучше думайте над вопросами!"
                 await self.app.store.vk_api.publish_in_sender_queue(
                     message
                 )
                 return
-            game = await self.app.store.game.get_game_sql_model(chat_id=message.peer_id, status=REGISTERED)
+            game = await self.app.store.game.get_game(chat_id=message.peer_id, status=REGISTERED)
             if game is None:
                 text = f"{full_name}, Добрый день! Присоединяйтесь к игре."
                 message = self.create_game_message(text=text,
