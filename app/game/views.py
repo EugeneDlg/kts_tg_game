@@ -176,28 +176,27 @@ class LatestGameGetView(View):
         raise HTTPMethodNotAllowed("post", ["get"], text="not implemented")
 
 
-class PlayerGameLinkView(View):
-    @docs(tags=['player'],
-          summary='Adding an existing player to an exiting game',
-          description='Adding an existing player to an exiting game')
-    @request_schema(PlayerGameLinkSchema)
-    @response_schema(PlayerGameLinkResponseSchema, 200)
-    @check_auth
-    async def post(self):
-        data = self.request["data"]
-        vk_id = data["vk_id"]
-        chat_id = data["chat_id"]
-        breakpoint()
-        game_model = await self.store.game.get_game_not_nested(chat_id=chat_id)
-        if game_model is None:
-            raise HTTPBadRequest(text="Game with this chat_id doesn't exist")
-        player_model = await self.store.game.get_player_by_vk_id_not_nested(vk_id=vk_id)
-        if player_model is None:
-            raise HTTPBadRequest(text="Player with this vk_id doesn't exist")
-        link = await self.store.game.link_player_to_game(
-            player_model=player_model, game_model=game_model
-        )
-        return json_response(data=PlayerGameLinkSchemaBeforeResponse.dump(link))
-
-    async def get(self):
-        raise HTTPMethodNotAllowed("get", ["post"], text="not implemented")
+# class PlayerGameLinkView(View):
+#     @docs(tags=['player'],
+#           summary='Adding an existing player to an exiting game',
+#           description='Adding an existing player to an exiting game')
+#     @request_schema(PlayerGameLinkSchema)
+#     @response_schema(PlayerGameLinkResponseSchema, 200)
+#     @check_auth
+#     async def post(self):
+#         data = self.request["data"]
+#         vk_id = data["vk_id"]
+#         chat_id = data["chat_id"]
+#         game_model = await self.store.game.get_game_not_nested(chat_id=chat_id)
+#         if game_model is None:
+#             raise HTTPBadRequest(text="Game with this chat_id doesn't exist")
+#         player_model = await self.store.game.get_player_by_vk_id_not_nested(vk_id=vk_id)
+#         if player_model is None:
+#             raise HTTPBadRequest(text="Player with this vk_id doesn't exist")
+#         link = await self.store.game.link_player_to_game(
+#             player_model=player_model, game_model=game_model
+#         )
+#         return json_response(data=PlayerGameLinkSchemaBeforeResponse.dump(link))
+#
+#     async def get(self):
+#         raise HTTPMethodNotAllowed("get", ["post"], text="not implemented")

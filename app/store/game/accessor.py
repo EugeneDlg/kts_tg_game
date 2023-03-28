@@ -1,6 +1,6 @@
 from typing import Optional
 from datetime import datetime
-from sqlalchemy import select, text
+from sqlalchemy import select, text, and_, or_
 from sqlalchemy.orm import joinedload
 
 from app.base.base_accessor import BaseAccessor
@@ -23,13 +23,22 @@ class GameAccessor(BaseAccessor):
             session.add(game)
         return to_dataclass(game)
 
-    async def get_game_sql_model(self, chat_id: int) -> GameModel:
+    async def get_game_sql_model(self, chat_id: int, status: str = None) -> GameModel:
         async with self.app.database.session.begin() as session:
-            game = (await session.execute(select(GameModel, PlayerModel, GameScoreModel)
-                                          .where(GameModel.chat_id == chat_id)
-                                          .options(joinedload(GameModel.players))
-                                          .options(joinedload(PlayerModel.scores))
-                                          .options(joinedload(GameScoreModel.games)))).scalar()
+            breakpoint()
+            if status is None:
+                game = (await session.execute(select(GameModel, PlayerModel, GameScoreModel)
+                                              .where(GameModel.chat_id == chat_id)
+                                              .options(joinedload(GameModel.players))
+                                              .options(joinedload(PlayerModel.scores))
+                                              .options(joinedload(GameScoreModel.games)))).scalar()
+            else:
+                game = (await session.execute(select(GameModel, PlayerModel, GameScoreModel)
+                                              .where(and_(GameModel.chat_id == chat_id,
+                                                          GameModel.status == status))
+                                              .options(joinedload(GameModel.players))
+                                              .options(joinedload(PlayerModel.scores))
+                                              .options(joinedload(GameScoreModel.games)))).scalar()
         return game
 
     # async def get_game_sql_model(self, chat_id: int):
@@ -40,25 +49,34 @@ class GameAccessor(BaseAccessor):
     #                                       .options(joinedload(GameScoreModel.players)))).scalar()
     #     return game
 
-    async def get_game(self, chat_id: int) -> Optional[Game]:
-        game = await self.get_game_sql_model(chat_id=chat_id)
+    async def get_game(self, chat_id: int, status: str = None) -> Optional[Game]:
+        game = await self.get_game_sql_model(chat_id=chat_id, status=status)
         if game is not None:
             return to_dataclass(game)
         return None
 
-    async def get_game_not_nested(self, chat_id: int) -> GameModel:
+    async def _get_game_by_id(self, id: int):
         async with self.app.database.session.begin() as session:
-            game = (await session.execute(select(GameModel)
-                                          .where(GameModel.chat_id == chat_id)
-                                          )).scalar()
+            game = (await session.execute(select(GameModel, PlayerModel, GameScoreModel)
+                                          .where(GameModel.id == id)
+                                          .options(joinedload(GameModel.players))
+                                          .options(joinedload(PlayerModel.scores))
+                                          .options(joinedload(GameScoreModel.games)))).scalar()
         return game
 
-    async def get_player_by_vk_id_not_nested(self, vk_id: int) -> PlayerModel:
+    async def update_game(self, id: int, **params):
+        status = params.get("status")
+        wait_status = params.get("wait_status")
+        my_points = params.get("my_points")
+        players_points = params.get("players_points")
+        game = await self._get_game_by_id(id=id)
+        game.status = status if status is not None else game.status
+        game.wait_status = wait_status if wait_status is not None else game.wait_status
+        game.my_points = my_points if my_points is not None else game.my_points
+        game.players_points = players_points if players_points is not None else game.players_points
         async with self.app.database.session.begin() as session:
-            player = (await session.execute(select(PlayerModel)
-                                            .where(PlayerModel.vk_id == vk_id)
-                                            )).scalar()
-        return player
+            session.add(game)
+        return game
 
     async def list_games(self) -> list[Game]:
         async with self.app.database.session.begin() as session:
@@ -123,15 +141,29 @@ class GameAccessor(BaseAccessor):
                                           .options(joinedload(PlayerModel.scores)))).scalar()
         return to_dataclass(game)
 
-    async def link_player_to_game(self, player_model: PlayerModel, game_model: GameModel) -> GameScoreModel:
+    async def link_player_to_game(self, player_id: int, game_id: int) -> GameScoreModel:
         """
         Link an already created game with an already created player. This method is used in Bot Manager,
         not in OpenAPI
-        :param player_model:
-        :param game_model:
+        :param player_id:
+        :param game_id:
         :return: game_score
         """
         async with self.app.database.session.begin() as session:
-            game_score = GameScoreModel(player_id=player_model.id, game_id=game_model.id)
+            game_score = GameScoreModel(player_id=player_id, game_id=game_id)
             session.add(game_score)
         return game_score
+
+    # async def get_game_not_nested(self, chat_id: int) -> GameModel:
+    #     async with self.app.database.session.begin() as session:
+    #         game = (await session.execute(select(GameModel)
+    #                                       .where(GameModel.chat_id == chat_id)
+    #                                       )).scalar()
+    #     return game
+
+    # async def get_player_by_vk_id_not_nested(self, vk_id: int) -> PlayerModel:
+    #     async with self.app.database.session.begin() as session:
+    #         player = (await session.execute(select(PlayerModel)
+    #                                         .where(PlayerModel.vk_id == vk_id)
+    #                                         )).scalar()
+    #     return player

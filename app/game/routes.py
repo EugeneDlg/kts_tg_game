@@ -7,7 +7,6 @@ from app.game.views import (
     LatestGameGetView,
     PlayerAddView,
     PlayerGetView,
-    PlayerGameLinkView
 )
 
 if typing.TYPE_CHECKING:

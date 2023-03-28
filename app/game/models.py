@@ -56,8 +56,11 @@ class GameModel(db):
     __tablename__ = "games"
     id = Column(Integer, primary_key=True)
     status = Column(String, nullable=False, default="registered")
+    wait_status = Column(String, nullable=False, default="ok")
+    my_points = Column(Integer, nullable=False, default=0)
+    players_points = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, nullable=False)
-    chat_id = Column(Integer, unique=True, nullable=False)
+    chat_id = Column(Integer, nullable=False)
     players = relationship("PlayerModel", secondary="game_score", back_populates="games")
     scores = relationship("GameScoreModel", back_populates="games",
                           viewonly=True,  cascade="all, delete")

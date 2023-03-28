@@ -15,7 +15,17 @@ from app.store.bot.dataclassess import (
 if typing.TYPE_CHECKING:
     from app.web.app import Application
 
+
+# status
 PLAYERS_AMOUNT = 2
+REGISTERED = "registered"
+ACTIVE = "active"
+FINISHED = "finished"
+# waiting status
+THINKING = "thinking"
+THINKING10 = "thinking10"
+SPEAKER = "speaker"
+ANSWER = "answer"
 
 
 class BotManager:
@@ -80,7 +90,6 @@ class BotManager:
         update = self.prepare_message(update)
         user_id = update.object.user_id
         peer_id = update.object.peer_id
-        breakpoint()
         if update.type == 'message_event':
             command = update.object.command
             event = Event(user_id=user_id, peer_id=peer_id, command=command)
@@ -112,7 +121,7 @@ class BotManager:
     def build_keyboard(
             buttons: list[list[dict]],
             params: Optional[dict] = None,
-            inline: Optional[bool] = True,
+            inline: Optional[bool] = False,
             one_time: Optional[bool] = True) -> dict:
         if params is not None:
             keyboard = params
@@ -148,8 +157,8 @@ class BotManager:
 
     async def _event_handler(self, event: Event):
         if event.command == "register":
-            breakpoint()
-            game = await self.app.store.game.get_game_sql_model(chat_id=event.peer_id)
+            # breakpoint()
+            game = await self.app.store.game.get_game_sql_model(chat_id=event.peer_id, status=REGISTERED)
             player = await self.app.store.game.get_player_by_vk_id_sql_model(vk_id=event.user_id)
             user = await self.app.store.vk_api.get_vk_user_by_id(user_id=event.user_id)
             players = []
@@ -160,6 +169,7 @@ class BotManager:
                                     "last_name": user["last_name"]})
             else:
                 players.append(player)
+            full_name = f'{user["name"]} {user["last_name"]}'
             if game is None:
                 # if game hasn't been created we create it
                 game = await self.app.store.game.create_game(
@@ -168,75 +178,89 @@ class BotManager:
                     players=players,
                     new_players=new_players
                 )
-                message = Message(text="Вы зарегистрированы. Ждем остальных участников.",
+                message = Message(text=f"{full_name}, Вы зарегистрированы. Ждем остальных участников.",
                                   user_id=event.user_id,
                                   peer_id=event.peer_id)
+            # if game has been already created, we add a player to it
             else:
-                # if game has been already created, we add a player to it
-                if player is None:
-                    player = await self.app.store.game.create_player(vk_id=user["user_id"],
-                                                                     name=user["name"],
-                                                                     last_name=["last_name"],
-                                                                     games=[game])
-                else:
-                    players = game.players
-                    if event.user_id in [player.vk_id for player in players]:
-                        text = "Вы уже зарегистрированы как участник в этой игре. " \
-                                       "Ждём подключения остальных участников..."
-                        message = Message(text=text,
-                                          user_id=event.user_id,
-                                          peer_id=event.peer_id)
-                        await self.app.store.vk_api.publish_in_sender_queue(message)
-                        return
-                    else:
-                        link = await self.app.store.game.link_player_to_game(
-                            player_model=player, game_model=game
-                        )
-                if len(game.players) + 1 == PLAYERS_AMOUNT:
-                    text = "Все участники в сборе. Начинаем игру."
-                    players = self.app.store.game.get_player_list(event.peer_id)
-                    breakpoint()
-                    message = self.start_game_message(text=text,
-                                                      user_id=event.user_id,
-                                                      peer_id=event.peer_id)
-                else:
-                    message = Message(text="Вы зарегистрированы."
-                                           " Ждем остальных участников.",
+                players = game.players
+                # if player is already added to this game and he clicks Register button again
+                if player is not None and event.user_id in [player.vk_id for player in players]:
+                    text = f"{full_name}, Вы уже зарегистрированы как участник в этой игре. " \
+                           "Ждём подключения остальных участников..."
+                    message = Message(text=text,
                                       user_id=event.user_id,
                                       peer_id=event.peer_id)
+                # if a player is new at all or he was added but to another game
+                else:
+                    # if he is a new player at all
+                    if player is None:
+                        player = await self.app.store.game.create_player(vk_id=user["user_id"],
+                                                                         name=user["name"],
+                                                                         last_name=user["last_name"],
+                                                                         games=[game])
+                    # if player is already added, but not to this game, we add him to this game
+                    else:
+                        link = await self.app.store.game.link_player_to_game(
+                            player_id=player.id, game_id=game.id
+                        )
+                    if len(game.players) + 1 == PLAYERS_AMOUNT:
+                        text = "Все участники в сборе. Начинаем игру."
+                        players = self.app.store.game.get_player_list(event.peer_id)
+                        breakpoint()
+                        message = self.start_game_message(text=text,
+                                                          user_id=event.user_id,
+                                                          peer_id=event.peer_id)
+                    else:
+                        message = Message(text=f"{full_name}, Вы зарегистрированы."
+                                               " Ждем остальных участников.",
+                                          user_id=event.user_id,
+                                          peer_id=event.peer_id)
             await self.app.store.vk_api.publish_in_sender_queue(message)
+            return
 
     async def _message_handler(self, message: Message):
+        user = await self.app.store.vk_api.get_vk_user_by_id(user_id=message.user_id)
+        full_name = f'{user["name"]} {user["last_name"]}'
         text = message.text.strip().lower()
         if text == "hello":
-            game = await self.app.store.game.get_game_sql_model(chat_id=message.peer_id)
+            game = await self.app.store.game.get_game_sql_model(chat_id=message.peer_id, status=ACTIVE)
+            if game is not None:
+                message.text = f"{full_name}, Вы уже играете! Лучше думайте над вопросами!"
+                await self.app.store.vk_api.publish_in_sender_queue(
+                    message
+                )
+                return
+            game = await self.app.store.game.get_game_sql_model(chat_id=message.peer_id, status=REGISTERED)
             if game is None:
-                text = "Вы - первый участник игры!"
+                text = f"{full_name}, Добрый день! Присоединяйтесь к игре."
                 message = self.create_game_message(text=text,
                                                    user_id=message.user_id,
                                                    peer_id=message.peer_id)
                 await self.app.store.vk_api.publish_in_sender_queue(message)
                 return
-            if game.status != "registered":
-                message.text = "Вы уже в игре!"
-                await self.app.store.vk_api.publish_in_sender_queue(
-                    message
-                )
-                return
             players = game.players
             if message.user_id in [player.vk_id for player in players]:
-                message.text = "Вы уже зарегистрированы как участник в этой игре. " \
+                message.text = f"{full_name}, Вы уже зарегистрированы как участник в этой игре. " \
                                "Ждём подключения остальных участников..."
-                await self.app.store.vk_api.publish_in_sender_queue(message)
-                return
             else:
                 players = [f"{player.name} {player.last_name}" for player in game.players]
                 players = " ,".join(players)
-                text = "Идёт регистрация участников игры. " \
+                text = f"{full_name}, идёт регистрация участников игры. " \
                        "Хотите зарегистрироваться? " \
                        "С нами следующие игроки: " + players
                 message = self.create_game_message(text=text,
                                                    user_id=message.user_id,
                                                    peer_id=message.peer_id)
+            await self.app.store.vk_api.publish_in_sender_queue(message)
+            return
+
+    async def send_goodbuy(self):
+        games = await self.app.store.game.list_games()
+        breakpoint()
+        for game in games:
+            chat_id = game.chat_id
+            for player in game.players:
+                vk_id = player.vk_id
+                message = Message(text="Game over", peer_id=chat_id, user_id=vk_id)
                 await self.app.store.vk_api.publish_in_sender_queue(message)
-                return
