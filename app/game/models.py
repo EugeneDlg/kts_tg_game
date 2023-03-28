@@ -42,6 +42,20 @@ class Game:
         return getattr(self, item)
 
 
+@dataclass
+class Question:
+    id: int
+    text: str
+    answer: "Answer"
+
+
+@dataclass
+class Answer:
+    id: int
+    text: int
+    question_id: int
+
+
 class PlayerModel(db):
     __tablename__ = "players"
     __table_args__ = (
@@ -95,6 +109,17 @@ class GameScoreModel(db):
     games = relationship("GameModel", back_populates="scores", viewonly=True)
 
 
+class QuestionModel(db):
+    __tablename__ = "questions"
+    id = Column(Integer, primary_key=True)
+    text = Column(String, nullable=False, default="")
+    answer = relationship("AnswerModel", back_populates="question", cascade="all, delete")
 
 
+class AnswerModel(db):
+    __tablename__ = "answers"
+    id = Column(Integer, primary_key=True)
+    text = Column(String, nullable=False, default="")
+    question_id = Column(Integer, ForeignKey("questions.id", ondelete="CASCADE"))
+    question = relationship("QuestionModel", back_populates="answer")
 

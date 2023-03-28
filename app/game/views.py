@@ -65,7 +65,7 @@ class GameAddView(View):
                 db_players.append(db_player_by_names)
         game = await self.store.game.create_game(chat_id=chat_id, created_at=created_at,
                                                  players=db_players, new_players=new_players)
-        return json_response(data=GameSchemaForCreateBeforeResponse().dump(game))
+        return json_response(data=GameSchemaForCreateBeforeResponse().dumps(game))
 
     async def get(self):
         raise HTTPMethodNotAllowed("get", ["post"], text="not implemented")
@@ -86,7 +86,7 @@ class GameGetView(View):
         game = await self.store.game.get_game(chat_id=int(chat_id))
         if game is None:
             raise HTTPNotFound(text="Game not found")
-        return json_response(data=GameSchemaBeforeResponse().dump(game))
+        return json_response(data=GameSchemaBeforeResponse().dumps(game))
 
     async def post(self):
         raise HTTPMethodNotAllowed("post", ["get"], text="not implemented")
@@ -101,7 +101,7 @@ class GameListView(View):
     async def get(self):
         games = await self.store.game.list_games()
         data = {"games": games}
-        dd = GameListSchemaBeforeResponse().dump(data)
+        dd = GameListSchemaBeforeResponse().dumps(data)
         return json_response(data=dd)
 
     async def post(self):
@@ -131,7 +131,7 @@ class PlayerAddView(View):
         player = await self.store.game.create_player(
             vk_id=vk_id, name=name, last_name=last_name, games=game_models
         )
-        return json_response(data=PlayerSchemaBeforeResponse().dump(player))
+        return json_response(data=PlayerSchemaBeforeResponse().dumps(player))
 
     async def get(self):
         raise HTTPMethodNotAllowed("get", ["post"], text="not implemented")
@@ -153,7 +153,7 @@ class PlayerGetView(View):
         player = await self.store.game.get_player_by_vk_id(vk_id=int(vk_id))
         if player is None:
             raise HTTPNotFound(text="Player not found")
-        return json_response(data=PlayerScoreSchemaBeforeResponse().dump(player))
+        return json_response(data=PlayerScoreSchemaBeforeResponse().dumps(player))
 
     async def post(self):
         raise HTTPMethodNotAllowed("post", ["get"], text="not implemented")
@@ -171,7 +171,7 @@ class LatestGameGetView(View):
         game = await self.store.game.get_latest_game()
         if game is None:
             raise HTTPNotFound(text="Game not found")
-        return json_response(data=GameSchemaBeforeResponse().dump(game))
+        return json_response(data=GameSchemaBeforeResponse().dumps(game))
 
     async def post(self):
         raise HTTPMethodNotAllowed("post", ["get"], text="not implemented")
@@ -197,7 +197,7 @@ class LatestGameGetView(View):
 #         link = await self.store.game.link_player_to_game(
 #             player_model=player_model, game_model=game_model
 #         )
-#         return json_response(data=PlayerGameLinkSchemaBeforeResponse.dump(link))
+#         return json_response(data=PlayerGameLinkSchemaBeforeResponse.dumps(link))
 #
 #     async def get(self):
 #         raise HTTPMethodNotAllowed("get", ["post"], text="not implemented")

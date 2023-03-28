@@ -3,8 +3,10 @@ import random
 import typing
 from typing import Optional
 import json
+from logging import getLogger
 import asyncio
 from asyncio import Queue, Task
+
 from app.store.bot.dataclassess import (
     Update,
     MessageUpdateObject,
@@ -36,6 +38,7 @@ class BotManager:
         self.bot_worker_tasks: Optional[list[Task]] = None
         self.bot_queue = asyncio.Queue()
         self.bot_worker_number = 1
+        self.logger = getLogger("bot_manager")
 
     async def publish_in_bot_queue(self, updates: list):
         for update in updates:
@@ -98,6 +101,7 @@ class BotManager:
             try:
                 await self._event_handler(event)
             except Exception as err:
+                self.logger.info(err)
                 self.app.store.vk_api.send_message("Error occurred: ", err)
         elif update.type == 'message_new':
             text = update.object.text
@@ -105,6 +109,7 @@ class BotManager:
             try:
                 await self._message_handler(message)
             except Exception as err:
+                self.logger.info(err)
                 self.app.store.vk_api.send_message("Error occurred: ", err)
 
     def make_message(self, text: str, user_id: int, peer_id: int, keyboard: dict = None):
@@ -236,7 +241,12 @@ class BotManager:
                                           user_id=event.user_id,
                                           peer_id=event.peer_id)
             await self.app.store.vk_api.publish_in_sender_queue(message)
-            return
+        if event.command == "start":
+            chat_id = event.peer_id
+            game = await self.app.store.game.get_game(chat_id=chat_id, status=REGISTERED)
+            params = {"status": "active"}
+            await self.app.store.game.update_game(id=game.id, **params)
+
 
     async def _message_handler(self, message: Message):
         user = await self.app.store.vk_api.get_vk_user_by_id(user_id=message.user_id)
