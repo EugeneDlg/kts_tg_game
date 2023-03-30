@@ -1,4 +1,5 @@
 import datetime
+import re
 import time
 import random
 import typing
@@ -299,7 +300,9 @@ class BotManager:
             await self.app.store.game.update_game(id=game.id, **params)
             await self.activate_round_timer(game_id=game.id, peer_id=event.peer_id,
                                             timer=self.app.config.game.thinking_time)
-        # if event.command
+        if event.command.find("speaker"):
+            m = re.search(r"^speaker(\d+)", event.command)
+            print(m.group(1))
 
     async def _message_handler(self, message: Message):
         user = await self.app.store.vk_api.get_vk_user_by_id(user_id=message.user_id)
@@ -375,7 +378,7 @@ class BotManager:
         game = await self.app.store.game.get_game_by_id(id=game_id)
         other_players = [player for player in game.players if player.vk_id != captain.vk_id]
         buttons = [
-            {"command": player.vk_id, "label": f"{player.name} {player.last_name}"}
+            {"command": f"speaker{player.vk_id}", "label": f"{player.name} {player.last_name}"}
             for player in other_players
         ]
         keyboard = {"buttons": buttons, "inline": True}
