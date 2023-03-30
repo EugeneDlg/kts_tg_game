@@ -30,12 +30,16 @@ class GameScore:
 @dataclass
 class Game:
     id: int
-    created_at: datetime
     chat_id: int
     status: str
     wait_status: str
+    wait_time: int
     my_points: int
     players_points: int
+    round: int
+    created_at: datetime
+    speaker: list[Player]
+    captain: list[Player]
     players: list[Player]
 
     def __getitem__(self, item):
@@ -46,14 +50,14 @@ class Game:
 class Question:
     id: int
     text: str
-    answer: "Answer"
+    answer: list["Answer"]
 
 
 @dataclass
 class Answer:
     id: int
-    text: int
-    question_id: int
+    text: str
+
 
 
 class PlayerModel(db):
@@ -65,6 +69,8 @@ class PlayerModel(db):
     vk_id = Column(Integer, unique=True, nullable=False)
     name = Column(String, nullable=False)
     last_name = Column(String, nullable=False)
+    game_captain = relationship("GameModel", secondary="game_captains", back_populates="captain")
+    game_speaker = relationship("GameModel", secondary="game_speakers", back_populates="speaker")
     games = relationship("GameModel", secondary="game_score", back_populates="players")
     scores = relationship("GameScoreModel", back_populates="players",
                           viewonly=True,  cascade="all, delete")
@@ -73,15 +79,21 @@ class PlayerModel(db):
 class GameModel(db):
     __tablename__ = "games"
     id = Column(Integer, primary_key=True)
+    chat_id = Column(Integer, nullable=False)
     status = Column(String, nullable=False, default="registered")
     wait_status = Column(String, nullable=False, default="ok")
+    wait_time = Column(Integer, nullable=False, default=0)
     my_points = Column(Integer, nullable=False, default=0)
     players_points = Column(Integer, nullable=False, default=0)
+    round = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, nullable=False)
-    chat_id = Column(Integer, nullable=False)
+
+    speaker = relationship("PlayerModel", secondary="game_speakers", back_populates="game_speaker")
+    questions = relationship("QuestionModel", secondary="used_questions", back_populates="games")
     players = relationship("PlayerModel", secondary="game_score", back_populates="games")
     scores = relationship("GameScoreModel", back_populates="games",
                           viewonly=True,  cascade="all, delete")
+    captain = relationship("PlayerModel", secondary="game_captains", back_populates="game_captain")
 
     def to_dc(self):
         players = []
@@ -109,11 +121,24 @@ class GameScoreModel(db):
     games = relationship("GameModel", back_populates="scores", viewonly=True)
 
 
+class GameCaptainModel(db):
+    __tablename__ = "game_captains"
+    game_id = Column(Integer, ForeignKey("games.id", ondelete="CASCADE"), primary_key=True)
+    player_id = Column(Integer, ForeignKey("players.id", ondelete="CASCADE"))
+
+
+class GameSpeakerModel(db):
+    __tablename__ = "game_speakers"
+    game_id = Column(Integer, ForeignKey("games.id", ondelete="CASCADE"), primary_key=True)
+    player_id = Column(Integer, ForeignKey("players.id", ondelete="CASCADE"))
+
+
 class QuestionModel(db):
     __tablename__ = "questions"
     id = Column(Integer, primary_key=True)
     text = Column(String, nullable=False, default="")
     answer = relationship("AnswerModel", back_populates="question", cascade="all, delete")
+    games = relationship("GameModel", secondary="used_questions", back_populates="questions")
 
 
 class AnswerModel(db):
@@ -123,3 +148,8 @@ class AnswerModel(db):
     question_id = Column(Integer, ForeignKey("questions.id", ondelete="CASCADE"))
     question = relationship("QuestionModel", back_populates="answer")
 
+
+class UsedQuestionsModel(db):
+    __tablename__ = "used_questions"
+    game_id = Column(Integer, ForeignKey("games.id", ondelete="CASCADE"), primary_key=True)
+    question_id = Column(Integer, ForeignKey("questions.id", ondelete="CASCADE"), primary_key=True)

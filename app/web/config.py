@@ -41,12 +41,22 @@ class RabbitMQConfig:
 
 
 @dataclass
+class GameConfig:
+    rounds: int
+    players: int
+    thinking_time: int
+    captain_time: int
+    answer_time: int
+
+
+@dataclass
 class Config:
     admin: AdminConfig
     session: SessionConfig = None
     bot: BotConfig = None
     database: DatabaseConfig = None
     rabbitmq: RabbitMQConfig = None
+    game: GameConfig = None
 
 
 def setup_config(app: "Application", config_path: str):
@@ -77,5 +87,12 @@ def setup_config(app: "Application", config_path: str):
             user=raw_config["rabbitmq"]["user"],
             password=raw_config["rabbitmq"]["password"],
             host=raw_config["rabbitmq"]["host"],
+        ),
+        game=GameConfig(
+            rounds=raw_config["game"]["rounds"],
+            players=raw_config["game"]["players"],
+            thinking_time=raw_config["game"]["thinking_time"],
+            captain_time=raw_config["game"]["captain_time"],
+            answer_time=raw_config["game"]["answer_time"],
         ),
     )

@@ -16,3 +16,9 @@ rabbitmq:
 bot:
   token: vk1.a.k4yiNRRUw70giVm_uHQ0O5J7wW953re2eBzS9uVltEmcUdFqq9n5xPXGJfz4sLkyeVRsQsOfOocmdY_6KVPXKxWRdv0DpD62s3z7gTabyk2oCXP9M5IsdohbINPVU-yPNik4JLj0lqzp98I3rUL85SagDd-XTfFIZSxhyMzKXIdK6O-dqJXfmewqOBwY2bwHewDmmlpEAgRwsTxPpubDXg
   group_id: 218878450
+game:
+  rounds: 3
+  players: 2
+  thinking_time: 20
+  captain_time: 10
+  answer_time: 20

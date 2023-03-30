@@ -82,4 +82,5 @@ def check_auth(func):
         self.current_user = user
         data = await func(self, *args, **kwargs)
         return data
+
     return wrapper

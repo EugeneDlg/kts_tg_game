@@ -93,20 +93,34 @@ class VkApiAccessor(BaseAccessor):
         return raw_updates
 
     async def send_message(self, message) -> None:
-        params = {"access_token": self.app.config.bot.token,
-                  "random_id": random.randint(1, 16000),
-                  "peer_id": message.peer_id,
-                  "message": message.text}
-        if message.keyboard is not None:
-            params["keyboard"] = message.keyboard
-        url = self._build_query(
-            host='https://api.vk.com/method/',
-            method="messages.send",
-            params=params
-        )
+        if message.event_data is None:
+            params = {"access_token": self.app.config.bot.token,
+                      "random_id": random.randint(1, 16000),
+                      "peer_id": message.peer_id,
+                      "message": message.text}
+            if message.keyboard is not None:
+                params["keyboard"] = message.keyboard
+            url = self._build_query(
+                host='https://api.vk.com/method/',
+                method="messages.send",
+                params=params
+            )
+        else:
+            params = {"access_token": self.app.config.bot.token,
+                      "event_id": message.event_id,
+                      "peer_id": message.peer_id,
+                      "user_id": message.user_id,
+                      "event_data": json.dumps({"text": message.text,
+                                                "type": message.event_data["type"]})}
+            url = self._build_query(
+                host='https://api.vk.com/method/',
+                method="messages.sendMessageEventAnswer",
+                params=params
+            )
         print("!!!Send: ", params)
         async with self.session.get(url) as response:
             resp_json = await response.json()
+        self.logger.info(resp_json)
         print("!!!Reply: ", resp_json)
 
     async def publish_in_sender_queue(self, update):

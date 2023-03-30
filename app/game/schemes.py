@@ -32,7 +32,7 @@ class PlayerSchemaForCreateBeforeResponse(Schema):
     last_name = fields.Str(required=True)
 
 
-class PlayerResponseSchema(Schema):
+class PlayerResponseSchema(OkResponseSchema):
     data = fields.Nested(PlayerSchemaBeforeResponse, required=True)
 
 
@@ -52,7 +52,7 @@ class PlayerScoreSchema2BeforeResponse(Schema):
     scores = fields.Nested("ScoreSchemaNotNested", many=True, required=True)
 
 
-class PlayerScoreResponseSchema(Schema):
+class PlayerScoreResponseSchema(OkResponseSchema):
     data = fields.Nested(PlayerScoreSchemaBeforeResponse, required=True)
 
 
@@ -66,7 +66,7 @@ class PlayerGameLinkSchemaBeforeResponse(Schema):
     chat_id = fields.Int(required=True)
 
 
-class PlayerGameLinkResponseSchema(Schema):
+class PlayerGameLinkResponseSchema(OkResponseSchema):
     data = fields.Nested(PlayerGameLinkSchemaBeforeResponse, required=True)
 
 
@@ -110,7 +110,7 @@ class GameSchemaForCreateBeforeResponse(Schema):
     players = fields.Nested(PlayerSchemaForCreateBeforeResponse, many=True, required=True)
 
 
-class GameResponseSchema(Schema):
+class GameResponseSchema(OkResponseSchema):
     data = fields.Nested(GameSchemaBeforeResponse, required=True)
 
 
@@ -118,6 +118,36 @@ class GameListSchemaBeforeResponse(Schema):
     games = fields.Nested(GameSchemaBeforeResponse, many=True, required=True)
 
 
-class GameListResponseSchema(Schema):
+class GameListResponseSchema(OkResponseSchema):
     data = fields.Nested(GameListSchemaBeforeResponse, required=True)
 
+
+class AnswerSchema(Schema):
+    id = fields.Int(required=False)
+    text = fields.Str(required=True)
+
+
+class QuestionSchema(Schema):
+    id = fields.Int(required=False)
+    text = fields.Str(required=True)
+    answer = fields.Nested(AnswerSchema, required=True)
+
+
+class QuestionSchemaBeforeResponse(Schema):
+    id = fields.Int(required=False)
+    text = fields.Str(required=True)
+    answer = fields.Nested(AnswerSchema, required=True, many=True)
+
+
+# response
+class QuestionResponseScheme(OkResponseSchema):
+    data = fields.Nested(QuestionSchemaBeforeResponse, required=True)
+
+
+class QuestionListSchema(Schema):
+    questions = fields.Nested(QuestionSchema, many=True, required=True)
+
+
+# response
+class QuestionListResponseSchema(OkResponseSchema):
+    data = fields.Nested(QuestionListSchema)

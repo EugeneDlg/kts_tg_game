@@ -3,10 +3,13 @@ from dataclasses import dataclass
 
 @dataclass
 class Message:
-    user_id: int
     peer_id: int
     text: str
+    user_id: int = None
+    event_id: int = None
     keyboard: dict = None
+    event_data: dict = None
+
 
 
 @dataclass
@@ -26,7 +29,7 @@ class MessageUpdateObject:
 
 @dataclass
 class EventUpdateObject:
-    id: str
+    event_id: str
     user_id: int
     peer_id: int
     command: str
@@ -34,6 +37,7 @@ class EventUpdateObject:
 
 @dataclass
 class Event:
+    event_id: str
     user_id: int
     peer_id: int
     command: str

@@ -10,7 +10,8 @@ from app.store.database.sqlalchemy_base import db
 if typing.TYPE_CHECKING:
     from app.web.app import Application
 
-TABLES = ["admins", "games", "players"]
+TABLES = ["admins", "games", "players", "used_questions"]
+TABLES_SEQ = ["admins", "games", "players"]
 
 
 class Database:
@@ -49,5 +50,6 @@ class Database:
         async with self.session.begin() as session:
             for table in TABLES:
                 await session.execute(text(f"TRUNCATE TABLE {table} CASCADE"))
+            for table in TABLES_SEQ:
                 await session.execute(text(f"ALTER SEQUENCE {table}_id_seq RESTART WITH 1"))
 
