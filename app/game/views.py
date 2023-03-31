@@ -54,7 +54,6 @@ class GameAddView(View):
                 name=name,
                 last_name=last_name
             )
-            breakpoint()
             if db_player_by_id is None and db_player_by_names is None:
                 new_players.append(player)
                 continue

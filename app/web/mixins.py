@@ -5,7 +5,6 @@ from aiohttp.web_exceptions import HTTPUnauthorized,  HTTPForbidden
 
 class AuthRequiredMixin:
     async def check_authentication(self):
-        breakpoint()
         session = await get_session(self.request)
         if session.new:
             raise HTTPUnauthorized

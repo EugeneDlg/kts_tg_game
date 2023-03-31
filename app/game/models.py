@@ -136,7 +136,7 @@ class GameSpeakerModel(db):
 class QuestionModel(db):
     __tablename__ = "questions"
     id = Column(Integer, primary_key=True)
-    text = Column(String, nullable=False, default="")
+    text = Column(String, nullable=False, default="", unique=True)
     answer = relationship("AnswerModel", back_populates="question", cascade="all, delete")
     games = relationship("GameModel", secondary="used_questions", back_populates="questions")
 

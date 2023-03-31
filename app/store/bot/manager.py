@@ -27,9 +27,15 @@ FINISHED = "finished"
 # waiting status
 THINKING = "thinking"
 THINKING10 = "thinking10"
-SPEAKER = "speaker"
+CAPTAIN = "captain"
 ANSWER = "answer"
 EXPIRED = "expired"
+WAIT_OK = "ok"
+
+#commands
+START = "start"
+REGISTER = "register"
+HELLO = "hello"
 
 
 class BotManager:
@@ -95,6 +101,12 @@ class BotManager:
         update = self.prepare_message(update)
         user_id = update.object.user_id
         peer_id = update.object.peer_id
+        questions_ids = await self.app.store.game.get_question_ids()
+        if len(questions_ids) == 0:
+            text = "В базе данных нет вопросов! Запуск игры невозможен."
+            message = self.make_message(text=text, peer_id=peer_id)
+            await self.app.store.vk_api.publish_in_sender_queue(message)
+            return
         if update.type == 'message_event':
             command = update.object.command
             event_id = update.object.event_id
@@ -163,7 +175,7 @@ class BotManager:
             text=text,
             user_id=user_id,
             peer_id=peer_id,
-            keyboard={"buttons": [{"command": "register", "label": "Присоединиться к игре"}]}
+            keyboard={"buttons": [{"command": REGISTER, "label": "Присоединиться к игре"}]}
         )
 
     def start_game_message(self, text, user_id: int, peer_id: int):
@@ -171,8 +183,21 @@ class BotManager:
             text=text,
             user_id=user_id,
             peer_id=peer_id,
-            keyboard={"buttons": [{"command": "start", "label": "Начать игру"}]}
+            keyboard={"buttons": [{"command": START, "label": "Начать игру"}]}
         )
+
+    async def speaker_selection_message(self, game_id: int, peer_id: int, text: str):
+        # breakpoint()
+        captain = await self.app.store.game.get_captain(id=game_id)
+        game = await self.app.store.game.get_game_by_id(id=game_id)
+        other_players = [player for player in game.players if player.vk_id != captain.vk_id]
+        buttons = [
+            {"command": f"speaker{player.vk_id}", "label": f"{player.name} {player.last_name}"}
+            for player in other_players
+        ]
+        keyboard = {"buttons": buttons, "inline": True}
+        message = self.make_message(text=text, peer_id=peer_id, keyboard=keyboard)
+        return message
 
     async def _event_handler(self, event: Event):
         # retrieve info about a user by VK API
@@ -181,7 +206,8 @@ class BotManager:
         game = await self.app.store.game.get_game(chat_id=event.peer_id, status=ACTIVE)
         if game is not None:
             round = game.round
-        if event.command == "register":
+        command = str(event.command)
+        if command == REGISTER:
             game = await self.app.store.game.get_game(chat_id=event.peer_id, status=ACTIVE)
             if game is not None:
                 raise GameException("Некорректная команда", event_answer=True)
@@ -263,7 +289,7 @@ class BotManager:
                                           user_id=event.user_id,
                                           peer_id=event.peer_id)
             await self.app.store.vk_api.publish_in_sender_queue(message)
-        if event.command == "start":
+        if command == START:
             chat_id = event.peer_id
             game = await self.app.store.game.get_game(chat_id=chat_id, status=REGISTERED)
             if game is None:
@@ -296,19 +322,41 @@ class BotManager:
             text = "Время пошло!"
             message = self.make_message(text=text, user_id=event.user_id, peer_id=event.peer_id)
             await self.app.store.vk_api.publish_in_sender_queue(message)
-            params = {"wait_status": "thinking", "wait_time": int(time.time())}
+            params = {"wait_status": THINKING, "wait_time": int(time.time())}
             await self.app.store.game.update_game(id=game.id, **params)
             await self.activate_round_timer(game_id=game.id, peer_id=event.peer_id,
                                             timer=self.app.config.game.thinking_time)
-        if event.command.find("speaker"):
-            m = re.search(r"^speaker(\d+)", event.command)
-            print(m.group(1))
+        if "speaker" in command:
+            m = re.search(r"^speaker(\d+)", command)
+            speaker_id = int(m.group(1))
+            speaker = await self.app.store.game.get_player_by_vk_id(speaker_id)
+            game = await self.app.store.game.get_game(chat_id=event.peer_id, status=ACTIVE)
+            breakpoint()
+            if game is None:
+                raise GameException("Некорректная команда.")
+            if game.wait_status not in [CAPTAIN, EXPIRED]:
+                return
+            captain = await self.app.store.game.get_captain(id=game.id)
+            if captain.vk_id != event.user_id:
+                raise GameException(f"{full_name}, Вы не капитан, поэтому не можете выбирать", event_answer=True)
+            if game.wait_status == EXPIRED:
+                raise GameException(f"К сожалению, время истекло. Вы не успели ответить.")
+            if game.wait_status == CAPTAIN:
+                self.captain_task[game.id].cancel()
+                text = f"На вопрос отвечает {speaker.name} {speaker.last_name}. " \
+                       f"На ответ у вас есть {self.get_literal_time(self.app.config.game.answer_time)}"
+                message = self.make_message(text=text, peer_id=event.peer_id, keyboard={})
+                await self.app.store.vk_api.publish_in_sender_queue(message)
+                params = {"wait_status": WAIT_OK, "wait_time": 0}
+                await self.app.store.game.update_game(id=game.id, **params)
+
+
 
     async def _message_handler(self, message: Message):
         user = await self.app.store.vk_api.get_vk_user_by_id(user_id=message.user_id)
         full_name = f'{user["name"]} {user["last_name"]}'
         text = message.text.strip().lower()
-        if text == "hello":
+        if text == HELLO:
             game = await self.app.store.game.get_game(chat_id=message.peer_id, status=ACTIVE)
             if game is not None:
                 raise GameException(f"{full_name}, некорректная команда")
@@ -354,36 +402,78 @@ class BotManager:
 
     async def activate_round_timer(self, game_id: int, peer_id: int, timer: int):
         self.round_task = {}
-        task = asyncio.create_task(self.wait_and_select_speaker(
+        task = asyncio.create_task(self._wait_and_provide_selection(
             game_id=game_id,
             peer_id=peer_id,
             timer=timer
         ))
         self.round_task[game_id] = task
 
-    async def wait_and_select_speaker(self, game_id: int, timer: int, peer_id: int):
+    async def _wait_and_provide_selection(self, game_id: int, timer: int, peer_id: int):
+        captain_timer = self.app.config.game.captain_time
         await asyncio.sleep(timer)
-        params = {"wait_status": "select_speaker", "wait_time": 0}
+        params = {"wait_status": CAPTAIN, "wait_time": 0}
         await self.app.store.game.update_game(id=game_id, **params)
-        text = f"Время вышло. Капитан, выберите отвечающего. У вас есть " \
-               f"{self.get_literal_time(self.app.config.game.captain_time)}."
+        text = f"Время на обсуждение вышло. Капитан, выберите отвечающего. У вас есть " \
+               f"{self.get_literal_time(captain_timer)}."
         message = await self.speaker_selection_message(
             game_id=game_id, peer_id=peer_id, text=text
         )
         await self.app.store.vk_api.publish_in_sender_queue(message)
+        await self.activate_captain_timer(game_id=game_id, peer_id=peer_id,
+                                          timer=captain_timer)
 
-    async def speaker_selection_message(self, game_id: int, peer_id: int, text: str):
-        # breakpoint()
-        captain = await self.app.store.game.get_captain(id=game_id)
+    async def activate_captain_timer(self, game_id: int, peer_id: int, timer: int):
+        self.captain_task = {}
+        task = asyncio.create_task(self._wait_and_select_speaker(
+            game_id=game_id,
+            peer_id=peer_id,
+            timer=timer
+        ))
+        self.captain_task[game_id] = task
+
+    async def _wait_and_select_speaker(self, game_id: int, peer_id: int, timer: int):
+        await asyncio.sleep(timer)
+        game = await self.app.store.game.get_game_by_id(game_id)
+        new_my_points = game.my_points + 1
+        params = {"wait_status": EXPIRED, "wait_time": 0, "my_points": new_my_points}
+        await self.app.store.game.update_game(id=game_id, **params)
+        text = f"К сожалению, время истекло. Балл за этот раунд переходит мне. " \
+               f"Счёт {new_my_points}:{game.players_points}"
+        message = self.make_message(text=text, peer_id=peer_id, keyboard={})
+        await self.app.store.vk_api.publish_in_sender_queue(message)
+        if new_my_points == self.app.config.game.max_points:
+            await self.finish_game(game_id=game_id, peer_id=peer_id, winner="me")
+        text = "Готовы продолжить игру?"
+        message = self.make_message(
+            text=text, peer_id=peer_id,
+            keyboard={"buttons": [{"command": "continue", "label": "Следующий раунд"}]})
+        await self.app.store.vk_api.publish_in_sender_queue(message)
+
+
+    async def finish_game(self, game_id: int, peer_id: int, winner: str):
         game = await self.app.store.game.get_game_by_id(id=game_id)
-        other_players = [player for player in game.players if player.vk_id != captain.vk_id]
-        buttons = [
-            {"command": f"speaker{player.vk_id}", "label": f"{player.name} {player.last_name}"}
-            for player in other_players
-        ]
-        keyboard = {"buttons": buttons, "inline": True}
-        message = self.make_message(text=text, peer_id=peer_id, keyboard=keyboard)
-        return message
+        params = {"status": FINISHED}
+        await self.app.store.game.update_game(id=game_id, **params)
+        if winner == "me":
+            text = f"Вы проиграли! Надеюсь, в следующий раз вам повезёт. " \
+                   f"Итоговый счёт {game.my_points}:{game.players_points}"
+            message = await self.make_message(text=text, peer_id=peer_id, keyboard={})
+            await self.app.store.vk_api.publish_in_sender_queue(message)
+        elif winner == "you":
+            text = f"Вы выиграли! Искренне поздравляю! " \
+                   f"Итоговый счёт {game.my_points}:{game.players_points}"
+            message = await self.make_message(text=text, peer_id=peer_id, keyboard={})
+            await self.app.store.vk_api.publish_in_sender_queue(message)
+        else:
+            text = f"Победила дружба:) Игра закончилась вничью. " \
+                   f"Итоговый счёт {game.my_points}:{game.players_points}"
+            message = await self.make_message(text=text, peer_id=peer_id, keyboard={})
+            await self.app.store.vk_api.publish_in_sender_queue(message)
+        text = "Хотите ли сыграть ещё?"
+        message = await self.make_message(text=text, peer_id=peer_id,
+                                          keyboard={"buttons": [{"command": "again", "label": "Играть ещё"}]})
+        await self.app.store.vk_api.publish_in_sender_queue(message)
 
     @staticmethod
     def get_literal_time(t: int):

@@ -42,7 +42,7 @@ class RabbitMQConfig:
 
 @dataclass
 class GameConfig:
-    rounds: int
+    max_points: int
     players: int
     thinking_time: int
     captain_time: int
@@ -89,7 +89,7 @@ def setup_config(app: "Application", config_path: str):
             host=raw_config["rabbitmq"]["host"],
         ),
         game=GameConfig(
-            rounds=raw_config["game"]["rounds"],
+            max_points=raw_config["game"]["max_points"],
             players=raw_config["game"]["players"],
             thinking_time=raw_config["game"]["thinking_time"],
             captain_time=raw_config["game"]["captain_time"],

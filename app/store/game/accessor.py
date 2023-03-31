@@ -15,6 +15,7 @@ from app.game.models import (
     Answer,
     QuestionModel,
     AnswerModel,
+    UsedQuestionsModel,
     GameCaptainModel,
     GameSpeakerModel,
 
@@ -154,8 +155,8 @@ class GameAccessor(BaseAccessor):
     async def get_captain(self, id: int) -> Player:
         async with self.app.database.session.begin() as session:
             game = (await session.execute(select(GameModel, PlayerModel)
-                                             .where(GameModel.id == id)
-                                             .options(joinedload(GameModel.captain)))).scalar()
+                                          .where(GameModel.id == id)
+                                          .options(joinedload(GameModel.captain)))).scalar()
             # captain = (await session.execute(select(PlayerModel, GameModel)
             #                                  .where(GameModel.id == id)
             #                                  .options(joinedload(PlayerModel.game_captain)))).scalar()
@@ -200,26 +201,36 @@ class GameAccessor(BaseAccessor):
 
     async def create_question(self, text: str, answer: dict) -> Question:
         answer_model = AnswerModel(text=answer["text"].strip())
+        text = text.strip()
         async with self.app.database.session.begin() as session:
             question = QuestionModel(text=text, answer=[answer_model])
             session.add(question)
         return to_dataclass(question)
 
-    async def get_questions_amount(self):
+    async def get_all_questions_amount(self):
         async with self.app.database.session.begin() as session:
             amount = (await session.execute(select(func.count(QuestionModel.id)))).scalar()
         return amount
 
-    async def get_question_ids(self):
+    async def get_all_question_ids(self):
         async with self.app.database.session.begin() as session:
             ids = (await session.execute(select(QuestionModel.id))).scalars()
+        return ids.unique().all()
+
+    async def get_question_ids(self):
+        async with self.app.database.session.begin() as session:
+            ids = (await session.execute(
+                select(QuestionModel.id)
+                .join(UsedQuestionsModel,
+                      UsedQuestionsModel.question_id == QuestionModel.id,
+                      isouter=True).filter(UsedQuestionsModel.question_id == None))).scalars()
         return ids.unique().all()
 
     async def get_question(self, question_id: int):
         async with self.app.database.session.begin() as session:
             question = (await session.execute(select(QuestionModel, AnswerModel)
-                                            .where(QuestionModel.id == question_id)
-                                            .options(joinedload(QuestionModel.answer)))).scalar()
+                                              .where(QuestionModel.id == question_id)
+                                              .options(joinedload(QuestionModel.answer)))).scalar()
         return question
 
     # async def get_game_not_nested(self, chat_id: int) -> GameModel:
