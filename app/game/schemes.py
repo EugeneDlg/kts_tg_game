@@ -56,18 +56,12 @@ class PlayerScoreResponseSchema(OkResponseSchema):
     data = fields.Nested(PlayerScoreSchemaBeforeResponse, required=True)
 
 
-class PlayerGameLinkSchema(Schema):
-    vk_id = fields.Int(required=True)
-    chat_id = fields.Int(required=True)
+class PlayerListSchemaBeforeResponse(Schema):
+    players = fields.Nested(PlayerScoreSchema2BeforeResponse, many=True, required=True)
 
 
-class PlayerGameLinkSchemaBeforeResponse(Schema):
-    vk_id = fields.Int(required=True)
-    chat_id = fields.Int(required=True)
-
-
-class PlayerGameLinkResponseSchema(OkResponseSchema):
-    data = fields.Nested(PlayerGameLinkSchemaBeforeResponse, required=True)
+class PlayerListResponseSchema(Schema):
+    data = fields.Nested(PlayerListSchemaBeforeResponse, required=True)
 
 
 class ScoreSchema(Schema):
@@ -139,15 +133,40 @@ class QuestionSchemaBeforeResponse(Schema):
     answer = fields.Nested(AnswerSchema, required=True, many=True)
 
 
+class QuestionDumpSchema(Schema):
+    id = fields.Int(required=False)
+    text = fields.Str(required=True)
+
+
 # response
 class QuestionResponseScheme(OkResponseSchema):
     data = fields.Nested(QuestionSchemaBeforeResponse, required=True)
 
 
-class QuestionListSchema(Schema):
-    questions = fields.Nested(QuestionSchema, many=True, required=True)
+class QuestionListSchemaBeforeResponse(Schema):
+    questions = fields.Nested(QuestionSchemaBeforeResponse, many=True, required=True)
 
 
 # response
 class QuestionListResponseSchema(OkResponseSchema):
-    data = fields.Nested(QuestionListSchema)
+    data = fields.Nested(QuestionListSchemaBeforeResponse)
+
+
+class QuestionListDumpSchemaBeforeResponse(Schema):
+    questions = fields.Nested(QuestionDumpSchema, many=True, required=True)
+
+
+class QuestionListDumpResponseSchema(OkResponseSchema):
+    data = fields.Nested(QuestionListSchemaBeforeResponse, required=True)
+
+
+class AnswerDumpSchema(AnswerSchema):
+    question_id = fields.Int(required=True)
+
+
+class AnswerListDumpSchemaBeforeResponse(Schema):
+    answers = fields.Nested(AnswerDumpSchema, many=True, required=True)
+
+
+class AnswerListDumpResponseSchema(Schema):
+    data = fields.Nested(AnswerListDumpSchemaBeforeResponse, required=True)

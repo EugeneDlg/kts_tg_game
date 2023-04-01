@@ -6,8 +6,8 @@ class Message:
     peer_id: int
     text: str
     user_id: int = None
-    event_id: int = None
     keyboard: dict = None
+    event_id: int = None
     event_data: dict = None
 
 

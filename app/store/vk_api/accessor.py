@@ -72,7 +72,6 @@ class VkApiAccessor(BaseAccessor):
         )
         async with self.app.store.vk_api.session.get(url) as response:
             resp_json = await response.json()
-        print("!!!VK user: ", resp_json)
         user_info = resp_json["response"][0]
         return {"user_id": user_id, "name": user_info["first_name"], "last_name": user_info["last_name"]}
 

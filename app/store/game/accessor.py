@@ -1,6 +1,6 @@
 from typing import Optional
 from datetime import datetime
-from sqlalchemy import select, text, and_, or_, func
+from sqlalchemy import select, and_, or_, func, delete
 from sqlalchemy.orm import joinedload
 
 from app.base.base_accessor import BaseAccessor
@@ -93,6 +93,7 @@ class GameAccessor(BaseAccessor):
         players_points = params.get("players_points")
         round_ = params.get("round")
         wait_time = params.get("wait_time")
+        current_question_id = params.get("current_question_id")
         game = await self._get_game_by_id(id=id)
         game.status = status if status is not None else game.status
         game.wait_status = wait_status if wait_status is not None else game.wait_status
@@ -100,13 +101,19 @@ class GameAccessor(BaseAccessor):
         game.players_points = players_points if players_points is not None else game.players_points
         game.round = round_ if round_ is not None else game.round
         game.wait_time = wait_time if wait_time is not None else game.wait_time
+        game.current_question_id = current_question_id if current_question_id is not None \
+            else game.current_question_id
 
         captain = params.get("captain")
+        speaker = params.get("speaker")
         async with self.app.database.session.begin() as session:
             if captain is not None:
                 # captain = await self._get_player_by_vk_id_sql_model(vk_id=params.get("captain").vk_id)
                 game_captain_link = GameCaptainModel(game_id=game.id, player_id=captain.id)
                 session.add(game_captain_link)
+            if speaker is not None:
+                game_speaker_link = GameSpeakerModel(game_id=game.id, player_id=speaker.id)
+                session.add(game_speaker_link)
             session.add(game)
         return game
 
@@ -152,15 +159,51 @@ class GameAccessor(BaseAccessor):
     async def get_player_by_names(self, name: str, last_name: str) -> Player:
         return to_dataclass(await self._get_player_by_names_sql_model(name=name, last_name=last_name))
 
+    async def get_player_list_by_game(self, game_id: int) -> list[Player]:
+        async with self.app.database.session.begin() as session:
+            players = (await session.execute(
+                select(PlayerModel, GameScoreModel)
+                .where(GameScoreModel.game_id == game_id)
+                .options(joinedload(PlayerModel.scores))
+                .options(joinedload(GameScoreModel.games)))
+                       ).scalars().unique().all()
+        return [to_dataclass(player) for player in players if player is not None]
+
+    async def _get_score_as_sql_model(self, player_id: int, game_id: int):
+        async with self.app.database.session.begin() as session:
+            score = (await session.execute(select(GameScoreModel)
+                                           .where(and_(GameScoreModel.game_id == game_id,
+                                                       GameScoreModel.player_id == player_id)))).scalars()
+        return score
+
+    async def update_player_score(self, player_id: int, game_id: int, points: int):
+        score = await self._get_score_as_sql_model(player_id=player_id, game_id=game_id)
+        score.points = points
+        async with self.app.database.session.begin() as session:
+            session.add(score)
+        return
+
     async def get_captain(self, id: int) -> Player:
         async with self.app.database.session.begin() as session:
             game = (await session.execute(select(GameModel, PlayerModel)
                                           .where(GameModel.id == id)
                                           .options(joinedload(GameModel.captain)))).scalar()
-            # captain = (await session.execute(select(PlayerModel, GameModel)
-            #                                  .where(GameModel.id == id)
-            #                                  .options(joinedload(PlayerModel.game_captain)))).scalar()
         return to_dataclass(game.captain[0])
+
+    async def get_speaker(self, id: int) -> Player:
+        async with self.app.database.session.begin() as session:
+            game = (await session.execute(select(GameModel, PlayerModel)
+                                          .where(GameModel.id == id)
+                                          .options(joinedload(GameModel.speaker)))).scalar()
+        return to_dataclass(game.speaker[0])
+
+    async def delete_speaker(self, game_id: int) -> None:
+        async with self.app.database.session.begin() as session:
+            link = (await session.execute(select(GameSpeakerModel).where(
+                GameSpeakerModel.game_id == game_id))).scalar()
+            if link is not None:
+                await session.delete(link)
+        return None
 
     async def get_player_list(self, chat_id: str) -> list[PlayerModel]:
         """
@@ -200,7 +243,7 @@ class GameAccessor(BaseAccessor):
         return game_score
 
     async def create_question(self, text: str, answer: dict) -> Question:
-        answer_model = AnswerModel(text=answer["text"].strip())
+        answer_model = AnswerModel(text=answer["text"].strip().lower())
         text = text.strip()
         async with self.app.database.session.begin() as session:
             question = QuestionModel(text=text, answer=[answer_model])
@@ -233,16 +276,29 @@ class GameAccessor(BaseAccessor):
                                               .options(joinedload(QuestionModel.answer)))).scalar()
         return question
 
-    # async def get_game_not_nested(self, chat_id: int) -> GameModel:
-    #     async with self.app.database.session.begin() as session:
-    #         game = (await session.execute(select(GameModel)
-    #                                       .where(GameModel.chat_id == chat_id)
-    #                                       )).scalar()
-    #     return game
+    async def list_questions(self):
+        async with self.app.database.session.begin() as session:
+            questions = (await session.execute(
+                select(QuestionModel, AnswerModel).options(
+                    joinedload(QuestionModel.answer))
+            )).scalars().unique().all()
+        return [to_dataclass(question) for question in questions if question is not None]
 
-    # async def get_player_by_vk_id_not_nested(self, vk_id: int) -> PlayerModel:
-    #     async with self.app.database.session.begin() as session:
-    #         player = (await session.execute(select(PlayerModel)
-    #                                         .where(PlayerModel.vk_id == vk_id)
-    #                                         )).scalar()
-    #     return player
+    async def list_answers(self):
+        async with self.app.database.session.begin() as session:
+            answers = (await session.execute(
+                select(AnswerModel)
+            )).scalars().unique().all()
+        return [to_dataclass(answer) for answer in answers if answer is not None]
+
+    async def mark_question_as_used(self, question_id: int, game_id: int):
+        async with self.app.database.session.begin() as session:
+            link = UsedQuestionsModel(question_id=question_id, game_id=game_id)
+            session.add(link)
+        return link
+
+    async def unmark_questions_as_used(self, game_id: int) -> None:
+        async with self.app.database.session.begin() as session:
+            await session.execute(delete(UsedQuestionsModel)
+                                  .where(UsedQuestionsModel.game_id == game_id))
+        return None

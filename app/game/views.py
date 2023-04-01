@@ -18,11 +18,17 @@ from app.game.schemes import (
     PlayerResponseSchema,
     PlayerScoreResponseSchema,
     PlayerScoreSchemaBeforeResponse,
+    PlayerListSchemaBeforeResponse,
+    PlayerListResponseSchema,
     QuestionSchema,
     QuestionResponseScheme,
     QuestionSchemaBeforeResponse,
-    QuestionListSchema,
-    QuestionListResponseSchema
+    QuestionListResponseSchema,
+    QuestionListSchemaBeforeResponse,
+    QuestionListDumpSchemaBeforeResponse,
+    QuestionListDumpResponseSchema,
+    AnswerListDumpSchemaBeforeResponse,
+    AnswerListDumpResponseSchema
 )
 from app.web.app import View
 from app.web.utils import json_response, check_auth
@@ -102,8 +108,7 @@ class GameListView(View):
     async def get(self):
         games = await self.store.game.list_games()
         data = {"games": games}
-        dd = GameListSchemaBeforeResponse().dump(data)
-        return json_response(data=dd)
+        return json_response(data=GameListSchemaBeforeResponse().dump(data))
 
     async def post(self):
         raise HTTPMethodNotAllowed("post", ["get"], text="not implemented")
@@ -160,6 +165,23 @@ class PlayerGetView(View):
         raise HTTPMethodNotAllowed("post", ["get"], text="not implemented")
 
 
+class PlayerListView(View):
+    @docs(tags=['player'],
+          summary='List all players of the particular game',
+          description='List all players of the particular game')
+    @response_schema(PlayerListResponseSchema, 200)
+    @check_auth
+    async def get(self):
+        query = self.request.rel_url.query
+        game_id = query.get("game_id")
+        players = await self.store.game.get_player_list_by_game(game_id=game_id)
+        data = {"games": players}
+        return json_response(data=PlayerListSchemaBeforeResponse().dump(data))
+
+    async def post(self):
+        raise HTTPMethodNotAllowed("post", ["get"], text="not implemented")
+
+
 class LatestGameGetView(View):
     @docs(tags=['game'],
           summary='Get a latest game',
@@ -167,8 +189,6 @@ class LatestGameGetView(View):
     @response_schema(GameResponseSchema, 200)
     @check_auth
     async def get(self):
-        # breakpoint()
-        query = self.request.rel_url.query
         game = await self.store.game.get_latest_game()
         if game is None:
             raise HTTPNotFound(text="Game not found")
@@ -190,32 +210,51 @@ class QuestionAddView(View):
         text = data["text"].strip()
         answer = data["answer"]
         game = await self.store.game.create_question(text=text, answer=answer)
-        breakpoint()
         return json_response(data=QuestionSchemaBeforeResponse().dump(game))
 
 
+class QuestionListView(View):
+    @docs(tags=['question'],
+          summary='List all questions',
+          description='List all questions')
+    @response_schema(QuestionListResponseSchema, 200)
+    @check_auth
+    async def get(self):
+        questions = await self.store.game.list_questions()
+        data = {"questions": questions}
+        return json_response(data=QuestionListSchemaBeforeResponse().dump(data))
 
-# class PlayerGameLinkView(View):
-#     @docs(tags=['player'],
-#           summary='Adding an existing player to an exiting game',
-#           description='Adding an existing player to an exiting game')
-#     @request_schema(PlayerGameLinkSchema)
-#     @response_schema(PlayerGameLinkResponseSchema, 200)
-#     @check_auth
-#     async def post(self):
-#         data = self.request["data"]
-#         vk_id = data["vk_id"]
-#         chat_id = data["chat_id"]
-#         game_model = await self.store.game.get_game_not_nested(chat_id=chat_id)
-#         if game_model is None:
-#             raise HTTPBadRequest(text="Game with this chat_id doesn't exist")
-#         player_model = await self.store.game.get_player_by_vk_id_not_nested(vk_id=vk_id)
-#         if player_model is None:
-#             raise HTTPBadRequest(text="Player with this vk_id doesn't exist")
-#         link = await self.store.game.link_player_to_game(
-#             player_model=player_model, game_model=game_model
-#         )
-#         return json_response(data=PlayerGameLinkSchemaBeforeResponse.dump(link))
-#
-#     async def get(self):
-#         raise HTTPMethodNotAllowed("get", ["post"], text="not implemented")
+    async def post(self):
+        raise HTTPMethodNotAllowed("post", ["get"], text="not implemented")
+
+
+class QuestionListDumpView(View):
+    @docs(tags=['question'],
+          summary='List all questions',
+          description='List all questions for dumping for alembic migration')
+    @response_schema(QuestionListDumpResponseSchema, 200)
+    @check_auth
+    async def get(self):
+        questions = await self.store.game.list_questions()
+        data = {"questions": questions}
+        return json_response(data=QuestionListDumpSchemaBeforeResponse().dump(data))
+
+    async def post(self):
+        raise HTTPMethodNotAllowed("post", ["get"], text="not implemented")
+
+
+class AnswerListDumpView(View):
+    @docs(tags=['answers'],
+          summary='List all answers',
+          description='List all answers for dumping for alembic migration')
+    @response_schema(AnswerListDumpResponseSchema, 200)
+    @check_auth
+    async def get(self):
+        answers = await self.store.game.list_answers()
+        data = {"answers": answers}
+        return json_response(data=AnswerListDumpSchemaBeforeResponse().dump(data))
+
+    async def post(self):
+        raise HTTPMethodNotAllowed("post", ["get"], text="not implemented")
+
+

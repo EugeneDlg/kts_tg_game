@@ -44,9 +44,10 @@ class RabbitMQConfig:
 class GameConfig:
     max_points: int
     players: int
-    thinking_time: int
-    captain_time: int
-    answer_time: int
+    thinking_timer: int
+    captain_timer: int
+    answer_timer: int
+    top_timer: int
 
 
 @dataclass
@@ -91,8 +92,9 @@ def setup_config(app: "Application", config_path: str):
         game=GameConfig(
             max_points=raw_config["game"]["max_points"],
             players=raw_config["game"]["players"],
-            thinking_time=raw_config["game"]["thinking_time"],
-            captain_time=raw_config["game"]["captain_time"],
-            answer_time=raw_config["game"]["answer_time"],
+            thinking_timer=raw_config["game"]["thinking_timer"],
+            captain_timer=raw_config["game"]["captain_timer"],
+            answer_timer=raw_config["game"]["answer_timer"],
+            top_timer=raw_config["game"]["top_timer"],
         ),
     )
