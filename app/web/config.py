@@ -62,7 +62,7 @@ class Config:
 
 def setup_config(app: "Application", config_path: str):
     # TODO: добавить BotConfig и SessionConfig по данным из config.yml
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         raw_config = yaml.safe_load(f)
 
     app.config = Config(
@@ -70,19 +70,17 @@ def setup_config(app: "Application", config_path: str):
             email=raw_config["admin"]["email"],
             password=raw_config["admin"]["password"],
         ),
-        session=SessionConfig(
-            key=raw_config["session"]["key"]
-        ),
+        session=SessionConfig(key=raw_config["session"]["key"]),
         bot=BotConfig(
             token=raw_config["bot"]["token"],
-            group_id=raw_config["bot"]["group_id"]
+            group_id=raw_config["bot"]["group_id"],
         ),
         database=DatabaseConfig(
             user=raw_config["database"]["user"],
             password=raw_config["database"]["password"],
             host=raw_config["database"]["host"],
             port=raw_config["database"]["port"],
-            database=raw_config["database"]["database"]
+            database=raw_config["database"]["database"],
         ),
         rabbitmq=RabbitMQConfig(
             user=raw_config["rabbitmq"]["user"],

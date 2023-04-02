@@ -11,14 +11,6 @@ class Message:
     event_data: dict = None
 
 
-
-@dataclass
-class UpdateMessage:
-    from_id: int
-    text: str
-    id: int
-
-
 @dataclass
 class MessageUpdateObject:
     id: int

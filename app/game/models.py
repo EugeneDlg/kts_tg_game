@@ -1,8 +1,14 @@
 import datetime
-import dataclasses
 from dataclasses import dataclass
-from typing import Optional
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, UniqueConstraint, DateTime
+
+from sqlalchemy import (
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import relationship
 
 from app.store.database.sqlalchemy_base import db
@@ -62,21 +68,30 @@ class Answer:
     question_id: str
 
 
-
 class PlayerModel(db):
     __tablename__ = "players"
     __table_args__ = (
-        UniqueConstraint('name', 'last_name', name='_name_lastname_uc'),
+        UniqueConstraint("name", "last_name", name="_name_lastname_uc"),
     )
     id = Column(Integer, primary_key=True)
     vk_id = Column(Integer, unique=True, nullable=False)
     name = Column(String, nullable=False)
     last_name = Column(String, nullable=False)
-    game_captain = relationship("GameModel", secondary="game_captains", back_populates="captain")
-    game_speaker = relationship("GameModel", secondary="game_speakers", back_populates="speaker")
-    games = relationship("GameModel", secondary="game_score", back_populates="players")
-    scores = relationship("GameScoreModel", back_populates="players",
-                          viewonly=True,  cascade="all, delete")
+    game_captain = relationship(
+        "GameModel", secondary="game_captains", back_populates="captain"
+    )
+    game_speaker = relationship(
+        "GameModel", secondary="game_speakers", back_populates="speaker"
+    )
+    games = relationship(
+        "GameModel", secondary="game_score", back_populates="players"
+    )
+    scores = relationship(
+        "GameScoreModel",
+        back_populates="players",
+        viewonly=True,
+        cascade="all, delete",
+    )
 
 
 class GameModel(db):
@@ -92,13 +107,27 @@ class GameModel(db):
     current_question_id = Column(Integer, ForeignKey("questions.id"))
     created_at = Column(DateTime, nullable=False)
 
-    speaker = relationship("PlayerModel", secondary="game_speakers", back_populates="game_speaker")
-    questions = relationship("QuestionModel", secondary="used_questions", back_populates="games")
-    players = relationship("PlayerModel", secondary="game_score", back_populates="games")
-    scores = relationship("GameScoreModel", back_populates="games",
-                          viewonly=True,  cascade="all, delete")
-    captain = relationship("PlayerModel", secondary="game_captains", back_populates="game_captain")
-    current_question = relationship("QuestionModel", back_populates="current_game")
+    speaker = relationship(
+        "PlayerModel", secondary="game_speakers", back_populates="game_speaker"
+    )
+    questions = relationship(
+        "QuestionModel", secondary="used_questions", back_populates="games"
+    )
+    players = relationship(
+        "PlayerModel", secondary="game_score", back_populates="games"
+    )
+    scores = relationship(
+        "GameScoreModel",
+        back_populates="games",
+        viewonly=True,
+        cascade="all, delete",
+    )
+    captain = relationship(
+        "PlayerModel", secondary="game_captains", back_populates="game_captain"
+    )
+    current_question = relationship(
+        "QuestionModel", back_populates="current_game"
+    )
 
     def to_dc(self):
         players = []
@@ -106,35 +135,51 @@ class GameModel(db):
             player = score.players
             p = score.points
             s = GameScore(points=p, games=None)
-            players.append(Player(id=player.id, vk_id=player.vk_id,
-                                  name=player.name, last_name=player.last_name,
-                                  scores=[s]))
+            players.append(
+                Player(
+                    id=player.id,
+                    vk_id=player.vk_id,
+                    name=player.name,
+                    last_name=player.last_name,
+                    scores=[s],
+                )
+            )
         return Game(
             id=self.id,
             created_at=self.created_at,
             chat_id=self.chat_id,
-            players=players
+            players=players,
         )
 
 
 class GameScoreModel(db):
     __tablename__ = "game_score"
-    player_id = Column(Integer, ForeignKey("players.id", ondelete="CASCADE"), primary_key=True)
-    game_id = Column(Integer, ForeignKey("games.id", ondelete="CASCADE"), primary_key=True)
+    player_id = Column(
+        Integer, ForeignKey("players.id", ondelete="CASCADE"), primary_key=True
+    )
+    game_id = Column(
+        Integer, ForeignKey("games.id", ondelete="CASCADE"), primary_key=True
+    )
     points = Column(Integer, nullable=False, default=0)
-    players = relationship("PlayerModel", back_populates="scores", viewonly=True)
+    players = relationship(
+        "PlayerModel", back_populates="scores", viewonly=True
+    )
     games = relationship("GameModel", back_populates="scores", viewonly=True)
 
 
 class GameCaptainModel(db):
     __tablename__ = "game_captains"
-    game_id = Column(Integer, ForeignKey("games.id", ondelete="CASCADE"), primary_key=True)
+    game_id = Column(
+        Integer, ForeignKey("games.id", ondelete="CASCADE"), primary_key=True
+    )
     player_id = Column(Integer, ForeignKey("players.id", ondelete="CASCADE"))
 
 
 class GameSpeakerModel(db):
     __tablename__ = "game_speakers"
-    game_id = Column(Integer, ForeignKey("games.id", ondelete="CASCADE"), primary_key=True)
+    game_id = Column(
+        Integer, ForeignKey("games.id", ondelete="CASCADE"), primary_key=True
+    )
     player_id = Column(Integer, ForeignKey("players.id", ondelete="CASCADE"))
 
 
@@ -142,8 +187,12 @@ class QuestionModel(db):
     __tablename__ = "questions"
     id = Column(Integer, primary_key=True)
     text = Column(String, nullable=False, default="", unique=True)
-    answer = relationship("AnswerModel", back_populates="question", cascade="all, delete")
-    games = relationship("GameModel", secondary="used_questions", back_populates="questions")
+    answer = relationship(
+        "AnswerModel", back_populates="question", cascade="all, delete"
+    )
+    games = relationship(
+        "GameModel", secondary="used_questions", back_populates="questions"
+    )
     current_game = relationship("GameModel", back_populates="current_question")
 
 
@@ -151,11 +200,19 @@ class AnswerModel(db):
     __tablename__ = "answers"
     id = Column(Integer, primary_key=True)
     text = Column(String, nullable=False, default="")
-    question_id = Column(Integer, ForeignKey("questions.id", ondelete="CASCADE"))
+    question_id = Column(
+        Integer, ForeignKey("questions.id", ondelete="CASCADE")
+    )
     question = relationship("QuestionModel", back_populates="answer")
 
 
 class UsedQuestionsModel(db):
     __tablename__ = "used_questions"
-    game_id = Column(Integer, ForeignKey("games.id", ondelete="CASCADE"), primary_key=True)
-    question_id = Column(Integer, ForeignKey("questions.id", ondelete="CASCADE"), primary_key=True)
+    game_id = Column(
+        Integer, ForeignKey("games.id", ondelete="CASCADE"), primary_key=True
+    )
+    question_id = Column(
+        Integer,
+        ForeignKey("questions.id", ondelete="CASCADE"),
+        primary_key=True,
+    )

@@ -1,6 +1,5 @@
 from app.store import Store
 from tests.utils import ok_response
-import datetime
 
 
 class TestAdminLoginView:

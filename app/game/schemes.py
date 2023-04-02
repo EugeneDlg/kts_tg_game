@@ -1,4 +1,5 @@
 from marshmallow import Schema, fields
+
 from app.web.schemes import OkResponseSchema
 
 
@@ -57,7 +58,9 @@ class PlayerScoreResponseSchema(OkResponseSchema):
 
 
 class PlayerListSchemaBeforeResponse(Schema):
-    players = fields.Nested(PlayerScoreSchema2BeforeResponse, many=True, required=True)
+    players = fields.Nested(
+        PlayerScoreSchema2BeforeResponse, many=True, required=True
+    )
 
 
 class PlayerListResponseSchema(Schema):
@@ -93,15 +96,24 @@ class GameSchemaNotNested(Schema):
 class GameSchemaBeforeResponse(Schema):
     id = fields.Int(required=True)
     chat_id = fields.Int(required=True)
+    status = fields.Str(required=True)
     created_at = fields.DateTime(required=True)
-    players = fields.Nested(PlayerScoreSchema2BeforeResponse, many=True, required=True)
+    my_points = fields.Int(required=True)
+    player_points = fields.Int(required=True)
+    round = fields.Int(required=True)
+    current_question_id = fields.Int(required=True)
+    players = fields.Nested(
+        PlayerScoreSchema2BeforeResponse, many=True, required=True
+    )
 
 
 class GameSchemaForCreateBeforeResponse(Schema):
     id = fields.Int(required=True)
     chat_id = fields.Int(required=True)
     created_at = fields.DateTime(required=True)
-    players = fields.Nested(PlayerSchemaForCreateBeforeResponse, many=True, required=True)
+    players = fields.Nested(
+        PlayerSchemaForCreateBeforeResponse, many=True, required=True
+    )
 
 
 class GameResponseSchema(OkResponseSchema):
@@ -127,6 +139,10 @@ class QuestionSchema(Schema):
     answer = fields.Nested(AnswerSchema, required=True)
 
 
+class QuestionIdSchema(Schema):
+    id = fields.Int(required=True)
+
+
 class QuestionSchemaBeforeResponse(Schema):
     id = fields.Int(required=False)
     text = fields.Str(required=True)
@@ -144,7 +160,9 @@ class QuestionResponseScheme(OkResponseSchema):
 
 
 class QuestionListSchemaBeforeResponse(Schema):
-    questions = fields.Nested(QuestionSchemaBeforeResponse, many=True, required=True)
+    questions = fields.Nested(
+        QuestionSchemaBeforeResponse, many=True, required=True
+    )
 
 
 # response

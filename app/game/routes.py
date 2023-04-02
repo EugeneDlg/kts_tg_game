@@ -1,6 +1,7 @@
 import typing
 
 from app.game.views import (
+    AnswerListDumpView,
     GameAddView,
     GameGetView,
     GameListView,
@@ -9,9 +10,10 @@ from app.game.views import (
     PlayerGetView,
     PlayerListView,
     QuestionAddView,
-    QuestionListView,
+    QuestionDeleteView,
+    QuestionGetView,
     QuestionListDumpView,
-    AnswerListDumpView
+    QuestionListView,
 )
 
 if typing.TYPE_CHECKING:
@@ -28,7 +30,7 @@ def setup_routes(app: "Application"):
     app.router.add_view("/player.list", PlayerListView)
     app.router.add_view("/question.add", QuestionAddView)
     app.router.add_view("/question.list", QuestionListView)
+    app.router.add_view("/question.get", QuestionGetView)
+    app.router.add_view("/question.delete", QuestionDeleteView)
     app.router.add_view("/question.dumplist", QuestionListDumpView)
     app.router.add_view("/answer.dumplist", AnswerListDumpView)
-
-

@@ -1,6 +1,7 @@
 import datetime as dt
+
+from aiohttp.web_exceptions import HTTPForbidden, HTTPUnauthorized
 from aiohttp_session import get_session
-from aiohttp.web_exceptions import HTTPUnauthorized,  HTTPForbidden
 
 
 class AuthRequiredMixin:

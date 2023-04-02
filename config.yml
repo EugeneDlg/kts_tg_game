@@ -4,7 +4,7 @@ admin:
   email: admin@admin.com
   password: admin
 database:
-  host: 127.0.0.1 
+  host: 127.0.0.1
   port: 5432
   user: kts_user
   password: kts_pass
@@ -22,4 +22,4 @@ game:
   thinking_timer: 30
   captain_timer: 30
   answer_timer: 30
-  top_timer: 3
+  top_timer: 2

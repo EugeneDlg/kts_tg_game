@@ -1,12 +1,13 @@
-from typing import Any, Optional
-from hashlib import sha256
-import json
 import datetime as dt
-from aiohttp_session import get_session
-from aiohttp.web_exceptions import HTTPUnauthorized, HTTPForbidden
+import json
+from hashlib import sha256
+from typing import Any
 
 from aiohttp.web import json_response as aiohttp_json_response
+from aiohttp.web_exceptions import HTTPForbidden, HTTPUnauthorized
 from aiohttp.web_response import Response
+from aiohttp_session import get_session
+
 from app.admin.models import Admin
 
 
@@ -22,20 +23,21 @@ def json_response(data: Any = None, status: str = "ok") -> Response:
 
 
 def error_json_response(
-        http_status: int,
-        status: str = "error",
-        message: Optional[str] = None,
-        data: Optional[dict] = None,
+    http_status: int,
+    status: str = "error",
+    message: str | None = None,
+    data: dict | None = None,
 ):
     if data is None:
         data = {}
     return aiohttp_json_response(
         status=http_status,
         data={
-            'status': status,
-            'message': str(message),
-            'data': data,
-        })
+            "status": status,
+            "message": str(message),
+            "data": data,
+        },
+    )
 
 
 def error_text(exception):
@@ -54,13 +56,15 @@ def error_reason(exception):
     return exception.reason
 
 
-async def authenticate(email: str, password: str, app: "Application") -> Optional[Admin]:
+async def authenticate(
+    email: str, password: str, app: "Application"
+) -> Admin | None:
     user = await app.store.admins.get_by_email(email)
     if user is None:
-        raise HTTPForbidden(text='No such user')
+        raise HTTPForbidden(text="No such user")
     password_ = sha256(password.encode()).hexdigest()
     if password_ != user.password:
-        raise HTTPForbidden(text='Wrong password')
+        raise HTTPForbidden(text="Wrong password")
     return user
 
 

@@ -1,7 +1,5 @@
-from typing import Optional
-
 import asyncio
-from asyncio import Task, Future
+from asyncio import Future, Task
 
 from app.store import Store
 
@@ -10,7 +8,7 @@ class Poller:
     def __init__(self, store: Store):
         self.store = store
         self.is_running = False
-        self.poll_task: Optional[Task] = None
+        self.poll_task: Task | None = None
 
     async def start(self):
         self.is_running = True
@@ -21,7 +19,7 @@ class Poller:
     def _done_callback(self, future: Future):
         if future.exception():
             self.store.app.logger.exception(
-                'polling failed', exc_info=future.exception()
+                "polling failed", exc_info=future.exception()
             )
 
     async def stop(self):
@@ -39,4 +37,3 @@ class Poller:
             updates = await self.store.vk_api.poll()
             print("!!!POLL: ", updates)
             await self.store.bots_manager.publish_in_bot_queue(updates)
-

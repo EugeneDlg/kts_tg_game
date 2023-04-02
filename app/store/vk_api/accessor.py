@@ -1,15 +1,13 @@
+import asyncio
 import json
 import random
 import typing
-from typing import Optional
+from asyncio import Task
 
 from aiohttp.client import ClientSession
-import asyncio
-from asyncio import Task, Future
 
 from app.base.base_accessor import BaseAccessor
 from app.store.vk_api.poller import Poller
-from app.store.bot.dataclassess import Message
 
 if typing.TYPE_CHECKING:
     from app.web.app import Application
@@ -19,12 +17,12 @@ class VkApiAccessor(BaseAccessor):
     def __init__(self, app: "Application", *args, **kwargs):
         super().__init__(app, *args, **kwargs)
         self.app = app
-        self.session: Optional[ClientSession] = None
-        self.key: Optional[str] = None
-        self.server: Optional[str] = None
-        self.poller: Optional[Poller] = None
-        self.ts: Optional[int] = None
-        self.sender_worker_tasks: Optional[list[Task]] = None
+        self.session: ClientSession | None = None
+        self.key: str | None = None
+        self.server: str | None = None
+        self.poller: Poller | None = None
+        self.ts: int | None = None
+        self.sender_worker_tasks: list[Task] | None = None
         self.sender_queue = asyncio.Queue()
         self.sender_worker_number = 1
 
@@ -53,8 +51,10 @@ class VkApiAccessor(BaseAccessor):
         url = self._build_query(
             host="https://api.vk.com/method/",
             method="groups.getLongPollServer",
-            params={"access_token": self.app.config.bot.token,
-                    "group_id": self.app.config.bot.group_id}
+            params={
+                "access_token": self.app.config.bot.token,
+                "group_id": self.app.config.bot.group_id,
+            },
         )
         async with self.session.get(url) as response:
             resp_json = await response.json()
@@ -63,26 +63,36 @@ class VkApiAccessor(BaseAccessor):
             self.key = resp_json["response"]["key"]
         print("!!long_poll: ", resp_json)
 
-    async def get_vk_user_by_id(self, user_id: int,):
-        params = {"user_ids": user_id, "access_token": self.app.config.bot.token}
+    async def get_vk_user_by_id(
+        self,
+        user_id: int,
+    ):
+        params = {
+            "user_ids": user_id,
+            "access_token": self.app.config.bot.token,
+        }
         url = self._build_query(
-            host='https://api.vk.com/method/',
-            method="users.get",
-            params=params
+            host="https://api.vk.com/method/", method="users.get", params=params
         )
         async with self.app.store.vk_api.session.get(url) as response:
             resp_json = await response.json()
         user_info = resp_json["response"][0]
-        return {"user_id": user_id, "name": user_info["first_name"], "last_name": user_info["last_name"]}
+        return {
+            "user_id": user_id,
+            "name": user_info["first_name"],
+            "last_name": user_info["last_name"],
+        }
 
     async def poll(self):
         url = self._build_query(
             host=self.server,
             method="",
-            params={"act": "a_check",
-                    "ts": self.ts,
-                    "key": self.key,
-                    "wait": 30}
+            params={
+                "act": "a_check",
+                "ts": self.ts,
+                "key": self.key,
+                "wait": 30,
+            },
         )
         async with self.session.get(url) as resp:
             data = await resp.json()
@@ -93,28 +103,33 @@ class VkApiAccessor(BaseAccessor):
 
     async def send_message(self, message) -> None:
         if message.event_data is None:
-            params = {"access_token": self.app.config.bot.token,
-                      "random_id": random.randint(1, 16000),
-                      "peer_id": message.peer_id,
-                      "message": message.text}
+            params = {
+                "access_token": self.app.config.bot.token,
+                "random_id": random.randint(1, 16000),
+                "peer_id": message.peer_id,
+                "message": message.text,
+            }
             if message.keyboard is not None:
                 params["keyboard"] = message.keyboard
             url = self._build_query(
-                host='https://api.vk.com/method/',
+                host="https://api.vk.com/method/",
                 method="messages.send",
-                params=params
+                params=params,
             )
         else:
-            params = {"access_token": self.app.config.bot.token,
-                      "event_id": message.event_id,
-                      "peer_id": message.peer_id,
-                      "user_id": message.user_id,
-                      "event_data": json.dumps({"text": message.text,
-                                                "type": message.event_data["type"]})}
+            params = {
+                "access_token": self.app.config.bot.token,
+                "event_id": message.event_id,
+                "peer_id": message.peer_id,
+                "user_id": message.user_id,
+                "event_data": json.dumps(
+                    {"text": message.text, "type": message.event_data["type"]}
+                ),
+            }
             url = self._build_query(
-                host='https://api.vk.com/method/',
+                host="https://api.vk.com/method/",
                 method="messages.sendMessageEventAnswer",
-                params=params
+                params=params,
             )
         print("!!!Send: ", params)
         async with self.session.get(url) as response:
@@ -127,7 +142,8 @@ class VkApiAccessor(BaseAccessor):
 
     async def start_sender_workers(self):
         self.sender_worker_tasks = [
-            asyncio.create_task(self._sender_worker()) for _ in range(self.sender_worker_number)
+            asyncio.create_task(self._sender_worker())
+            for _ in range(self.sender_worker_number)
         ]
 
     async def _sender_worker(self):

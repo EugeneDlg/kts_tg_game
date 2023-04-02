@@ -1,4 +1,3 @@
-from copy import deepcopy
 from marshmallow import Schema, fields
 
 

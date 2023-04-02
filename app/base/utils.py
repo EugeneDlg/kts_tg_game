@@ -1,22 +1,25 @@
 import dataclasses
+
 from app.game.models import (
+    Answer,
+    AnswerModel,
     Game,
     GameModel,
-    Player,
-    PlayerModel,
     GameScore,
     GameScoreModel,
+    Player,
+    PlayerModel,
     Question,
     QuestionModel,
-    Answer,
-    AnswerModel
 )
 
-models = {GameModel: Game,
-          PlayerModel: Player,
-          GameScoreModel: GameScore,
-          QuestionModel: Question,
-          AnswerModel: Answer}
+models = {
+    GameModel: Game,
+    PlayerModel: Player,
+    GameScoreModel: GameScore,
+    QuestionModel: Question,
+    AnswerModel: Answer,
+}
 
 
 def to_dataclass(model_instance, chain=[]):

@@ -1,21 +1,19 @@
-import json
 import typing
 
 from aiohttp.web_exceptions import (
-    HTTPUnprocessableEntity,
     HTTPBadRequest,
-    HTTPUnauthorized,
-    HTTPForbidden,
-    HTTPNotFound,
-    HTTPMethodNotAllowed,
     HTTPConflict,
+    HTTPForbidden,
+    HTTPMethodNotAllowed,
+    HTTPNotFound,
     HTTPServerError,
+    HTTPUnauthorized,
+    HTTPUnprocessableEntity,
 )
 from aiohttp.web_middlewares import middleware
 from aiohttp_apispec import validation_middleware
 
-from app.web.utils import error_json_response
-from app.web.utils import error_text, error_reason
+from app.web.utils import error_json_response, error_reason, error_text
 
 if typing.TYPE_CHECKING:
     from app.web.app import Application, Request

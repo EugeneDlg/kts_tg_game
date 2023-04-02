@@ -1,4 +1,5 @@
 import typing
+
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
@@ -22,12 +23,14 @@ class Database:
         host = app.config.database.host
         port = app.config.database.port
         db_name = app.config.database.database
-        db_connection_url = f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{db_name}"
-        self._engine = create_async_engine(db_connection_url, echo=True, future=True)
+        db_connection_url = (
+            f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{db_name}"
+        )
+        self._engine = create_async_engine(
+            db_connection_url, echo=True, future=True
+        )
         self.session = sessionmaker(
-            bind=self._engine,
-            expire_on_commit=False,
-            class_=AsyncSession
+            bind=self._engine, expire_on_commit=False, class_=AsyncSession
         )
         self._db = db
 
@@ -51,5 +54,6 @@ class Database:
             for table in TABLES:
                 await session.execute(text(f"TRUNCATE TABLE {table} CASCADE"))
             for table in TABLES_SEQ:
-                await session.execute(text(f"ALTER SEQUENCE {table}_id_seq RESTART WITH 1"))
-
+                await session.execute(
+                    text(f"ALTER SEQUENCE {table}_id_seq RESTART WITH 1")
+                )
