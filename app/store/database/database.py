@@ -34,7 +34,7 @@ class Database:
         )
         self._db = db
 
-    async def connect(self, app: "Application"):
+    async def connect(self):
         # async with self._engine.begin() as session:
         #     await session.run_sync(db.metadata.create_all)
         email = self.app.config.admin.email
@@ -43,7 +43,7 @@ class Database:
         if user is None:
             await self.app.store.admins.create_admin(email, password)
 
-    async def disconnect(self, app: "Application"):
+    async def disconnect(self):
         # async with self._engine.begin() as session:
         #     await session.run_sync(db.metadata.drop_all)
         await self.clear()

@@ -10,6 +10,16 @@ class Message:
     event_id: int = None
     event_data: dict = None
 
+    def serialize(self):
+        return {
+            "text": self.text,
+            "user_id": self.user_id,
+            "peer_id": self.peer_id,
+            "keyboard": self.keyboard,
+            "event_id": self.event_id,
+            "event_data": self.event_data
+        }
+
 
 @dataclass
 class MessageUpdateObject:

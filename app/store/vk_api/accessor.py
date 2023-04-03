@@ -1,13 +1,12 @@
-import asyncio
 import json
 import random
 import typing
-from asyncio import Task
 
 from aiohttp.client import ClientSession
 
 from app.base.base_accessor import BaseAccessor
 from app.store.vk_api.poller import Poller
+from app.store.bot.dataclassess import Message
 
 if typing.TYPE_CHECKING:
     from app.web.app import Application
@@ -22,18 +21,18 @@ class VkApiAccessor(BaseAccessor):
         self.server: str | None = None
         self.poller: Poller | None = None
         self.ts: int | None = None
-        self.sender_worker_tasks: list[Task] | None = None
-        self.sender_queue = asyncio.Queue()
-        self.sender_worker_number = 1
 
-    async def connect(self, app: "Application"):
+    async def connect(self, is_poller=True):
         self.session = ClientSession()
-        self.poller = Poller(app.store)
+        if is_poller:
+            await self.start()
+
+    async def start(self):
+        self.poller = Poller(self)
         await self._get_long_poll_service()
         await self.poller.start()
 
-    async def disconnect(self, app: "Application"):
-        # await self.app.store.bots_manager.send_goodbuy()
+    async def disconnect(self):
         if self.poller:
             await self.poller.stop()
         if self.session:
@@ -96,12 +95,14 @@ class VkApiAccessor(BaseAccessor):
         )
         async with self.session.get(url) as resp:
             data = await resp.json()
-            self.logger.info(data)
+            # self.logger.info(data)
             self.ts = data["ts"]
             raw_updates = data.get("updates", [])
         return raw_updates
 
-    async def send_message(self, message) -> None:
+    async def send_message(self, message: Message) -> None:
+        if message.user_ids is None:
+            ### params
         if message.event_data is None:
             params = {
                 "access_token": self.app.config.bot.token,
@@ -134,20 +135,5 @@ class VkApiAccessor(BaseAccessor):
         print("!!!Send: ", params)
         async with self.session.get(url) as response:
             resp_json = await response.json()
-        self.logger.info(resp_json)
+        # self.logger.info(resp_json)
         print("!!!Reply: ", resp_json)
-
-    async def publish_in_sender_queue(self, update):
-        self.sender_queue.put_nowait(update)
-
-    async def start_sender_workers(self):
-        self.sender_worker_tasks = [
-            asyncio.create_task(self._sender_worker())
-            for _ in range(self.sender_worker_number)
-        ]
-
-    async def _sender_worker(self):
-        while True:
-            message = await self.sender_queue.get()
-            await self.app.store.vk_api.send_message(message)
-            self.sender_queue.task_done()
