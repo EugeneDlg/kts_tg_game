@@ -20,7 +20,10 @@ from app.game.models import (
 )
 
 
-class GameAccessor(BaseAccessor):
+class GameAccessor:
+    def __init__(self, db):
+        self.database = db
+        
     async def create_game(
         self,
         chat_id: int,
@@ -42,7 +45,7 @@ class GameAccessor(BaseAccessor):
             for player in new_players
         ]
         db_players.extend(new_players_models)
-        async with self.app.database.session.begin() as session:
+        async with self.database.session.begin() as session:
             game = GameModel(
                 chat_id=chat_id, players=db_players, created_at=created_at
             )
@@ -52,7 +55,7 @@ class GameAccessor(BaseAccessor):
     async def _get_game_sql_model(
         self, chat_id: int, status: str = None
     ) -> GameModel:
-        async with self.app.database.session.begin() as session:
+        async with self.database.session.begin() as session:
             # breakpoint()
             if status is None:
                 game = (
@@ -82,7 +85,7 @@ class GameAccessor(BaseAccessor):
         return game
 
     # async def get_game_sql_model(self, chat_id: int):
-    #     async with self.app.database.session.begin() as session:
+    #     async with self.database.session.begin() as session:
     #         game = (await session.execute(select(GameModel, GameScoreModel)
     #                                       .where(GameModel.chat_id == chat_id)
     #                                       .options(joinedload(GameModel.scores))
@@ -96,7 +99,7 @@ class GameAccessor(BaseAccessor):
         return None
 
     async def _get_game_by_id(self, id: int):
-        async with self.app.database.session.begin() as session:
+        async with self.database.session.begin() as session:
             game = (
                 await session.execute(
                     select(GameModel, PlayerModel, GameScoreModel)
@@ -143,7 +146,7 @@ class GameAccessor(BaseAccessor):
 
         captain = params.get("captain")
         speaker = params.get("speaker")
-        async with self.app.database.session.begin() as session:
+        async with self.database.session.begin() as session:
             if captain is not None:
                 # captain = await self._get_player_by_vk_id_sql_model(vk_id=params.get("captain").vk_id)
                 game_captain_link = GameCaptainModel(
@@ -159,7 +162,7 @@ class GameAccessor(BaseAccessor):
         return game
 
     async def list_games(self) -> list[Game]:
-        async with self.app.database.session.begin() as session:
+        async with self.database.session.begin() as session:
             games_ = await session.execute(
                 select(GameModel, PlayerModel)
                 .options(joinedload(GameModel.players))
@@ -178,7 +181,7 @@ class GameAccessor(BaseAccessor):
                     chat_id=game.chat_id, status=game.status
                 )
             )
-        async with self.app.database.session.begin() as session:
+        async with self.database.session.begin() as session:
             player = PlayerModel(
                 vk_id=vk_id, name=name, last_name=last_name, games=db_games
             )
@@ -186,7 +189,7 @@ class GameAccessor(BaseAccessor):
         return to_dataclass(player)
 
     async def _get_player_by_vk_id_sql_model(self, vk_id: int) -> PlayerModel:
-        async with self.app.database.session.begin() as session:
+        async with self.database.session.begin() as session:
             player = (
                 await session.execute(
                     select(PlayerModel, GameScoreModel)
@@ -205,7 +208,7 @@ class GameAccessor(BaseAccessor):
     async def _get_player_by_names_sql_model(
         self, name: str, last_name: str
     ) -> PlayerModel:
-        async with self.app.database.session.begin() as session:
+        async with self.database.session.begin() as session:
             player = (
                 await session.execute(
                     select(PlayerModel, GameScoreModel)
@@ -231,7 +234,7 @@ class GameAccessor(BaseAccessor):
     async def list_players_by_game(
         self, game_id: int, status: str = None
     ) -> list[Player]:
-        async with self.app.database.session.begin() as session:
+        async with self.database.session.begin() as session:
             players = (
                 (
                     await session.execute(
@@ -250,7 +253,7 @@ class GameAccessor(BaseAccessor):
         ]
 
     async def _get_score(self, player_id: int, game_id: int):
-        async with self.app.database.session.begin() as session:
+        async with self.database.session.begin() as session:
             score = (
                 await session.execute(
                     select(GameScoreModel).where(
@@ -269,12 +272,12 @@ class GameAccessor(BaseAccessor):
         score = await self._get_score(player_id=player_id, game_id=game_id)
         points_ = score.points
         score.points = points_ + points if points is not None else points_ + 1
-        async with self.app.database.session.begin() as session:
+        async with self.database.session.begin() as session:
             session.add(score)
         return
 
     async def get_total_score(self, player_id: int) -> int:
-        async with self.app.database.session.begin() as session:
+        async with self.database.session.begin() as session:
             score = (
                 await session.execute(
                     select(func.sum(GameScoreModel.points))
@@ -285,7 +288,7 @@ class GameAccessor(BaseAccessor):
         return score
 
     async def get_captain(self, id: int) -> Player:
-        async with self.app.database.session.begin() as session:
+        async with self.database.session.begin() as session:
             game = (
                 await session.execute(
                     select(GameModel, PlayerModel)
@@ -296,7 +299,7 @@ class GameAccessor(BaseAccessor):
         return to_dataclass(game.captain[0])
 
     async def get_speaker(self, id: int) -> Player:
-        async with self.app.database.session.begin() as session:
+        async with self.database.session.begin() as session:
             game = (
                 await session.execute(
                     select(GameModel, PlayerModel)
@@ -307,7 +310,7 @@ class GameAccessor(BaseAccessor):
         return to_dataclass(game.speaker[0])
 
     async def delete_speaker(self, game_id: int) -> None:
-        async with self.app.database.session.begin() as session:
+        async with self.database.session.begin() as session:
             link = (
                 await session.execute(
                     select(GameSpeakerModel).where(
@@ -325,7 +328,7 @@ class GameAccessor(BaseAccessor):
     #     chat_id: chat_id
     #     :return: list of players
     #     """
-    #     async with self.app.database.session.begin() as session:
+    #     async with self.database.session.begin() as session:
     #         players_ = await session.execute(select(PlayerModel, GameModel)
     #                                          .where(GameModel.chat_id == chat_id)
     #                                          .options(joinedload(PlayerModel.games)))
@@ -334,7 +337,7 @@ class GameAccessor(BaseAccessor):
     #     return players
 
     async def get_latest_game(self) -> Game:
-        async with self.app.database.session.begin() as session:
+        async with self.database.session.begin() as session:
             game = (
                 await session.execute(
                     select(GameModel, PlayerModel)
@@ -356,7 +359,7 @@ class GameAccessor(BaseAccessor):
         :param game_id:
         :return: game_score
         """
-        async with self.app.database.session.begin() as session:
+        async with self.database.session.begin() as session:
             game_score = GameScoreModel(player_id=player_id, game_id=game_id)
             session.add(game_score)
         return game_score
@@ -364,25 +367,25 @@ class GameAccessor(BaseAccessor):
     async def create_question(self, text: str, answer: dict) -> Question:
         answer_model = AnswerModel(text=answer["text"].strip().lower())
         text = text.strip()
-        async with self.app.database.session.begin() as session:
+        async with self.database.session.begin() as session:
             question = QuestionModel(text=text, answer=[answer_model])
             session.add(question)
         return to_dataclass(question)
 
     async def get_all_questions_amount(self):
-        async with self.app.database.session.begin() as session:
+        async with self.database.session.begin() as session:
             amount = (
                 await session.execute(select(func.count(QuestionModel.id)))
             ).scalar()
         return amount
 
     async def get_all_question_ids(self):
-        async with self.app.database.session.begin() as session:
+        async with self.database.session.begin() as session:
             ids = (await session.execute(select(QuestionModel.id))).scalars()
         return ids.unique().all()
 
     async def get_question_ids(self):
-        async with self.app.database.session.begin() as session:
+        async with self.database.session.begin() as session:
             ids = (
                 await session.execute(
                     select(QuestionModel.id)
@@ -397,7 +400,7 @@ class GameAccessor(BaseAccessor):
         return ids.unique().all()
 
     async def _get_question(self, question_id: int) -> QuestionModel:
-        async with self.app.database.session.begin() as session:
+        async with self.database.session.begin() as session:
             question = (
                 await session.execute(
                     select(QuestionModel, AnswerModel)
@@ -412,7 +415,7 @@ class GameAccessor(BaseAccessor):
         return to_dataclass(question)
 
     async def list_questions(self):
-        async with self.app.database.session.begin() as session:
+        async with self.database.session.begin() as session:
             questions = (
                 (
                     await session.execute(
@@ -432,7 +435,7 @@ class GameAccessor(BaseAccessor):
         ]
 
     async def list_answers(self):
-        async with self.app.database.session.begin() as session:
+        async with self.database.session.begin() as session:
             answers = (
                 (await session.execute(select(AnswerModel)))
                 .scalars()
@@ -444,13 +447,13 @@ class GameAccessor(BaseAccessor):
         ]
 
     async def mark_question_as_used(self, question_id: int, game_id: int):
-        async with self.app.database.session.begin() as session:
+        async with self.database.session.begin() as session:
             link = UsedQuestionsModel(question_id=question_id, game_id=game_id)
             session.add(link)
         return link
 
     async def unmark_questions_as_used(self, game_id: int) -> None:
-        async with self.app.database.session.begin() as session:
+        async with self.database.session.begin() as session:
             await session.execute(
                 delete(UsedQuestionsModel).where(
                     UsedQuestionsModel.game_id == game_id
@@ -459,7 +462,7 @@ class GameAccessor(BaseAccessor):
         return None
 
     async def delete_question(self, question_id: int) -> None:
-        async with self.app.database.session.begin() as session:
+        async with self.database.session.begin() as session:
             question = await self._get_question(question_id)
             await session.delete(question)
         return None

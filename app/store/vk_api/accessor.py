@@ -22,7 +22,7 @@ class VkApiAccessor(BaseAccessor):
         self.poller: Poller | None = None
         self.ts: int | None = None
 
-    async def connect(self, is_poller=True):
+    async def connect(self, app: "Application" = None, is_poller=True):
         self.session = ClientSession()
         if is_poller:
             await self.start()
@@ -32,7 +32,7 @@ class VkApiAccessor(BaseAccessor):
         await self._get_long_poll_service()
         await self.poller.start()
 
-    async def disconnect(self):
+    async def disconnect(self, app: "Application" = None):
         if self.poller:
             await self.poller.stop()
         if self.session:
@@ -101,39 +101,47 @@ class VkApiAccessor(BaseAccessor):
         return raw_updates
 
     async def send_message(self, message: Message) -> None:
-        if message.user_ids is None:
-            ### params
-        if message.event_data is None:
-            params = {
-                "access_token": self.app.config.bot.token,
-                "random_id": random.randint(1, 16000),
-                "peer_id": message.peer_id,
-                "message": message.text,
-            }
-            if message.keyboard is not None:
-                params["keyboard"] = message.keyboard
+        params = {"access_token": self.app.config.bot.token}
+        if message.vk_user_request is not None:
+            params["user_ids"] = message.vk_user_request
             url = self._build_query(
-                host="https://api.vk.com/method/",
-                method="messages.send",
-                params=params,
+                host="https://api.vk.com/method/", method="users.get", params=params
             )
         else:
-            params = {
-                "access_token": self.app.config.bot.token,
-                "event_id": message.event_id,
-                "peer_id": message.peer_id,
-                "user_id": message.user_id,
-                "event_data": json.dumps(
-                    {"text": message.text, "type": message.event_data["type"]}
-                ),
-            }
-            url = self._build_query(
-                host="https://api.vk.com/method/",
-                method="messages.sendMessageEventAnswer",
-                params=params,
-            )
+            if message.event_data is None:
+                params["random_id"] = random.randint(1, 16000)
+                params["peer_id"] = message.peer_id
+                params["message"] =  message.text
+                if message.keyboard is not None:
+                    params["keyboard"] = message.keyboard
+                url = self._build_query(
+                    host="https://api.vk.com/method/",
+                    method="messages.send",
+                    params=params,
+                )
+            else:
+                params["event_id"] = message.event_id
+                params["peer_id"] = message.peer_id
+                params["user_id"] = message.user_id
+                params["event_data"] = json.dumps(
+                        {"text": message.text, "type": message.event_data["type"]}
+                    )
+                url = self._build_query(
+                    host="https://api.vk.com/method/",
+                    method="messages.sendMessageEventAnswer",
+                    params=params,
+                )
         print("!!!Send: ", params)
         async with self.session.get(url) as response:
             resp_json = await response.json()
         # self.logger.info(resp_json)
+        if message.vk_user_request is not None:
+            reply = {
+                "vk_user_request": resp_json['response'][0]['id'],
+                "first_name": resp_json['response'][0]['first_name'],
+                "last_name": resp_json['response'][0]['last_name'],
+                "peer_id": message.peer_id,
+                "event_id": message.event_id
+            }
+            await self.app.publish(reply)
         print("!!!Reply: ", resp_json)

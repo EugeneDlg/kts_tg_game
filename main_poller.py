@@ -4,7 +4,6 @@ import functools
 import signal
 
 from app.web.config import setup_config
-from app.store.rabbitmq.rabbitmq import Rabbitmq
 from rabbitmq.rabbitmq import Rabbitmq
 from app.store.vk_api.accessor import VkApiAccessor
 

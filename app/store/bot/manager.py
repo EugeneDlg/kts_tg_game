@@ -13,6 +13,7 @@ from app.store.bot.dataclassess import (
     Message,
     MessageUpdateObject,
     Update,
+    InfoUpdateObject
 )
 
 if typing.TYPE_CHECKING:
@@ -50,7 +51,7 @@ class BotManager:
         self.answer_task = {}
 
     @staticmethod
-    def prepare_message(message: dict):
+    def deserialize(message: dict):
         if message["type"] == "message_new":
             return Update(
                 type=message["type"],
@@ -71,9 +72,35 @@ class BotManager:
                     command=message["object"]["payload"]["command"],
                 ),
             )
+        if message["type"] == "vk_user_request":
+            return Update(
+                type=message["type"],
+                object=InfoUpdateObject(
+                    vk_user_request=message["object"]["id"],
+                    name=message["object"]["first_name"],
+                    last_name=message["object"]["last_id"],
+                    peer_id=message["object"]["peer_id"],
+                    event_id=message["object"]["event_id"],
+                )
+            )
 
     async def handle_updates(self, update: Update):
-        update = self.prepare_message(update)
+        update = self.deserialize(update)
+        if update.type == "vk_user_request":
+            vk_user_request = update.object.user_id
+            name = update.object.name
+            last_name = update.object.last_name
+            peer_id = update.object.peer_id
+            event_id = update.object.event_id
+            message = Message(
+                vk_user_request=vk_user_request,
+                name=name,
+                last_name=last_name,
+                peer_id=peer_id,
+                event_id=event_id
+            )
+            await self.user_info_handler(message)
+            return
         user_id = update.object.user_id
         peer_id = update.object.peer_id
         questions_ids = await self.game.get_question_ids()
@@ -105,6 +132,7 @@ class BotManager:
             except Exception as err:
                 self.logger.info(err)
         elif update.type == "message_new":
+            breakpoint()
             text = update.object.text
             message = Message(user_id=user_id, peer_id=peer_id, text=text)
             try:
@@ -127,6 +155,7 @@ class BotManager:
         keyboard: dict = None,
         event_data: dict = None,
         event_id: str = None,
+        vk_user_request: int = None
     ):
         if keyboard is not None:
             buttons = []
@@ -155,6 +184,7 @@ class BotManager:
             keyboard=keyboard,
             event_data=event_data,
             event_id=event_id,
+            vk_user_request=vk_user_request
         )
 
     @staticmethod
@@ -237,6 +267,7 @@ class BotManager:
         user_id: int = None,
         event_data: dict = None,
         event_id: str = None,
+        vk_user_request: int = None
     ):
         message = self.make_message(
             text=text,
@@ -245,6 +276,7 @@ class BotManager:
             user_id=user_id,
             event_data=event_data,
             event_id=event_id,
+            vk_user_request=vk_user_request
         )
         await self.rabbitmq.publish(message.serialize())
         # await self.app.store.vk_api.publish_in_sender_queue(message)
@@ -252,7 +284,7 @@ class BotManager:
     async def event_handler(self, event: Event):
         command = str(event.command)
         if command == REGISTER:
-            await self.register_handler(event)
+            await self.before_register_handler(event)
         if command == START:
             await self.start_handler(event)
         if "speaker" in command:
@@ -268,6 +300,24 @@ class BotManager:
             await self.hello_message_handler(message)
         else:
             await self.answer_message_handler(message)
+
+    async def user_info_handler(self, message: Message):
+        vk_id = message.vk_user_request
+        name = message.name
+        last_name = message.last_name
+        event_id = message.event_id
+        peer_id = message.peer_id
+        command = REGISTER
+        player = await self.game.create_player(
+            vk_id=vk_id,
+            name=name,
+            last_name=last_name
+        )
+        breakpoint()
+        event = Event(event_id=event_id, user_id=vk_id,
+                      peer_id=peer_id, command=command)
+        await self.register_handler(event=event)
+
 
     async def activate_top_timer(self, game_id: int, peer_id: int):
         task = asyncio.create_task(
@@ -361,7 +411,7 @@ class BotManager:
             vk_id=event.user_id
         )
         if user is None:
-            await self.request_user_info(user_vk_id=event.user_id)
+            await self.request_user_info(event=event)
             return
         await self.register_handler(event=event)
 
@@ -489,7 +539,12 @@ class BotManager:
                         peer_id=event.peer_id,
                     )
 
-    async def request_user_info(self, user_vk_id: int):
+    async def request_user_info(self, event: Event):
+        await self.publish_message(
+            vk_user_request=event.user_id,
+            peer_id=event.peer_id,
+            event_id=event.event_id
+        )
 
 
     async def start_handler(self, event: Event):

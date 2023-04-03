@@ -21,11 +21,12 @@ async def main():
     config_path = os.path.join(
         os.path.dirname(os.path.realpath(__file__)), "config.yml"
     )
-    database = Database()
     rabbit = Rabbitmq(input_queue="bot_queue", output_queue="sender_queue")
     setup_config(app=rabbit, config_path=config_path)
-    game = GameAccessor(app=rabbit)
-    bot = BotManager(app=rabbit, db=game)
+    database = Database(app=rabbit)
+
+    game = GameAccessor(db=database)
+    bot = BotManager(rabbitmq=rabbit, game=game)
 
     asyncio.get_running_loop().add_signal_handler(
         signal.SIGINT, functools.partial(asyncio.create_task, shutdown())

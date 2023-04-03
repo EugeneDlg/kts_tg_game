@@ -20,7 +20,7 @@ async def main():
         os.path.dirname(os.path.realpath(__file__)), "config.yml"
     )
 
-    rabbit = Rabbitmq(input_queue="sender_queue", output_queue=None)
+    rabbit = Rabbitmq(input_queue="sender_queue", output_queue="bot_queue")
     vk_accessor = VkApiAccessor(app=rabbit)
     setup_config(app=rabbit, config_path=config_path)
 
