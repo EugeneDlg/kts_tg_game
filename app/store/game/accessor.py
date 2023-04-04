@@ -55,7 +55,7 @@ class GameAccessor:
 
     async def get_game(
             self, chat_id: int, status: str = None
-    ) -> GameModel:
+    ) -> Game:
         async with self.database.session.begin() as session:
             if status is None:
                 game_all = (
@@ -80,35 +80,37 @@ class GameAccessor:
                     )
 
                 ).all()
-            game_instance = game_all[0][0]
-            players = []
-            for row in game_all:
-                player = row[1]
-                player_ = Player(id=player.id,
-                                 vk_id=player.vk_id,
-                                 name=player.name,
-                                 last_name=player.last_name,
-                                 scores=[
-                                     GameScore(points=row[2].points,
-                                               games=None
-                                               )
-                                 ])
-                players.append(player_)
-            game = Game(
-                id=game_instance.id,
-                chat_id=game_instance.chat_id,
-                created_at=game_instance.created_at,
-                current_question_id=game_instance.current_question_id,
-                wait_status=game_instance.wait_status,
-                wait_time=game_instance.wait_time,
-                status=game_instance.status,
-                my_points=game_instance.my_points,
-                players_points=game_instance.players_points,
-                round=game_instance.round,
-                players=players,
-                speaker=None,
-                captain=None
-            )
+        if game_all is None or len(game_all) == 0:
+            return None
+        game_instance = game_all[0][0]
+        players = []
+        for row in game_all:
+            player = row[1]
+            player_ = Player(id=player.id,
+                             vk_id=player.vk_id,
+                             name=player.name,
+                             last_name=player.last_name,
+                             scores=[
+                                 GameScore(points=row[2].points,
+                                           games=None
+                                           )
+                             ])
+            players.append(player_)
+        game = Game(
+            id=game_instance.id,
+            chat_id=game_instance.chat_id,
+            created_at=game_instance.created_at,
+            current_question_id=game_instance.current_question_id,
+            wait_status=game_instance.wait_status,
+            wait_time=game_instance.wait_time,
+            status=game_instance.status,
+            my_points=game_instance.my_points,
+            players_points=game_instance.players_points,
+            round=game_instance.round,
+            players=players,
+            speaker=None,
+            captain=None
+        )
         return game
 
     # async def get_game_sql_model(self, chat_id: int):
