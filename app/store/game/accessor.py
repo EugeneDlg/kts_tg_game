@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import and_, delete, func, select
+from sqlalchemy import and_, delete, func, select, distinct
 from sqlalchemy.orm import joinedload
 
 from app.base.base_accessor import BaseAccessor
@@ -11,6 +11,7 @@ from app.game.models import (
     GameCaptainModel,
     GameModel,
     GameScoreModel,
+    GameScore,
     GameSpeakerModel,
     Player,
     PlayerModel,
@@ -23,13 +24,13 @@ from app.game.models import (
 class GameAccessor:
     def __init__(self, db):
         self.database = db
-        
+
     async def create_game(
-        self,
-        chat_id: int,
-        created_at: datetime,
-        players: list[Player],
-        new_players: list[dict],
+            self,
+            chat_id: int,
+            created_at: datetime,
+            players: list[Player],
+            new_players: list[dict],
     ) -> Game:
         db_players = []
         for player in players:
@@ -52,36 +53,62 @@ class GameAccessor:
             session.add(game)
         return to_dataclass(game)
 
-    async def _get_game_sql_model(
-        self, chat_id: int, status: str = None
+    async def get_game(
+            self, chat_id: int, status: str = None
     ) -> GameModel:
         async with self.database.session.begin() as session:
-            # breakpoint()
             if status is None:
-                game = (
+                game_all = (
                     await session.execute(
                         select(GameModel, PlayerModel, GameScoreModel)
                         .where(GameModel.chat_id == chat_id)
-                        .options(joinedload(GameModel.players))
-                        .options(joinedload(PlayerModel.scores))
-                        .options(joinedload(GameScoreModel.games))
+                        .join(GameModel, GameModel.id == GameScoreModel.game_id, isouter=True)
+                        .join(PlayerModel, PlayerModel.id == GameScoreModel.player_id, isouter=True)
                     )
-                ).scalar()
+
+                ).all()
             else:
-                game = (
+                game_all = (
                     await session.execute(
                         select(GameModel, PlayerModel, GameScoreModel)
-                        .where(
-                            and_(
+                        .where(and_(
                                 GameModel.chat_id == chat_id,
                                 GameModel.status == status,
-                            )
-                        )
-                        .options(joinedload(GameModel.players))
-                        .options(joinedload(PlayerModel.scores))
-                        .options(joinedload(GameScoreModel.games))
+                            ))
+                        .join(GameModel, GameModel.id == GameScoreModel.game_id, isouter=True)
+                        .join(PlayerModel, PlayerModel.id == GameScoreModel.player_id, isouter=True)
                     )
-                ).scalar()
+
+                ).all()
+            game_instance = game_all[0][0]
+            players = []
+            for row in game_all:
+                player = row[1]
+                player_ = Player(id=player.id,
+                                 vk_id=player.vk_id,
+                                 name=player.name,
+                                 last_name=player.last_name,
+                                 scores=[
+                                     GameScore(points=row[2].points,
+                                               games=None
+                                               )
+                                 ])
+                players.append(player_)
+            game = Game(
+                id=game_instance.id,
+                chat_id=game_instance.chat_id,
+                created_at=game_instance.created_at,
+                current_question_id=game_instance.current_question_id,
+                wait_status=game_instance.wait_status,
+                wait_time=game_instance.wait_time,
+                status=game_instance.status,
+                my_points=game_instance.my_points,
+                players_points=game_instance.players_points,
+                round=game_instance.round,
+                players=players,
+                speaker=None,
+                captain=None
+            )
         return game
 
     # async def get_game_sql_model(self, chat_id: int):
@@ -92,11 +119,11 @@ class GameAccessor:
     #                                       .options(joinedload(GameScoreModel.players)))).scalar()
     #     return game
 
-    async def get_game(self, chat_id: int, status: str = None) -> Game | None:
-        game = await self._get_game_sql_model(chat_id=chat_id, status=status)
-        if game is not None:
-            return to_dataclass(game)
-        return None
+    # async def get_game(self, chat_id: int, status: str = None) -> Game | None:
+    #     game = await self._get_game_sql_model(chat_id=chat_id, status=status)
+    #     if game is not None:
+    #         return game
+    #     return None
 
     async def _get_game_by_id(self, id: int):
         async with self.database.session.begin() as session:
@@ -172,7 +199,7 @@ class GameAccessor:
         return [to_dataclass(game) for game in games if game is not None]
 
     async def create_player(
-        self, vk_id: int, name: str, last_name: str, games: list[Game]
+            self, vk_id: int, name: str, last_name: str, games: list[Game]
     ) -> Player:
         db_games = []
         for game in games:
@@ -216,7 +243,7 @@ class GameAccessor:
         )
 
     async def _get_player_by_names_sql_model(
-        self, name: str, last_name: str
+            self, name: str, last_name: str
     ) -> PlayerModel:
         async with self.database.session.begin() as session:
             player = (
@@ -242,7 +269,7 @@ class GameAccessor:
         )
 
     async def list_players_by_game(
-        self, game_id: int, status: str = None
+            self, game_id: int, status: str = None
     ) -> list[Player]:
         async with self.database.session.begin() as session:
             players = (
@@ -277,7 +304,7 @@ class GameAccessor:
         return score
 
     async def update_player_score(
-        self, player_id: int, game_id: int, points: int = None
+            self, player_id: int, game_id: int, points: int = None
     ):
         score = await self._get_score(player_id=player_id, game_id=game_id)
         points_ = score.points
@@ -360,7 +387,7 @@ class GameAccessor:
         return to_dataclass(game)
 
     async def link_player_to_game(
-        self, player_id: int, game_id: int
+            self, player_id: int, game_id: int
     ) -> GameScoreModel:
         """
         Link an already created game with an already created player. This method is used in Bot Manager,

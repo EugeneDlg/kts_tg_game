@@ -11,8 +11,8 @@ class Store:
     def __init__(self, app: "Application"):
         from app.store.admin.accessor import AdminAccessor
         from app.store.game.accessor import GameAccessor
-        self.admins = AdminAccessor(app)
-        self.game = GameAccessor(app)
+        self.admins = AdminAccessor(app.database)
+        self.game = GameAccessor(app.database)
         self.app = app
 
 

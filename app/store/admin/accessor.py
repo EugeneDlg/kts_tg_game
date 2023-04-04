@@ -5,15 +5,15 @@ from sqlalchemy import select
 
 from app.admin.models import AdminModel
 from app.base.base_accessor import BaseAccessor
+from app.store.database.database import Database
 
 if typing.TYPE_CHECKING:
     from app.web.app import Application
 
 
 class AdminAccessor(BaseAccessor):
-    def __init__(self, app: "Application"):
-        self.app = app
-        self.database = app.database
+    def __init__(self, db: "Database"):
+        self.database = db
 
     async def get_by_email(self, email: str) -> AdminModel | None:
         async with self.database.session.begin() as session:
