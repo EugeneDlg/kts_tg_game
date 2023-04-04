@@ -1,16 +1,12 @@
-from typing import Optional
-
-from aiohttp.web import (
-    Application as AiohttpApplication,
-    View as AiohttpView,
-    Request as AiohttpRequest,
-)
+from aiohttp.web import Application as AiohttpApplication
+from aiohttp.web import Request as AiohttpRequest
+from aiohttp.web import View as AiohttpView
 from aiohttp_apispec import setup_aiohttp_apispec
-from aiohttp_session.cookie_storage import EncryptedCookieStorage
 from aiohttp_session import setup as setup_aiohttp_session
+from aiohttp_session.cookie_storage import EncryptedCookieStorage
 
 from app.admin.models import Admin
-from app.store import setup_store, Store
+from app.store import Store, setup_store
 from app.store.database.database import Database
 from app.web.config import Config, setup_config
 from app.web.logger import setup_logging
@@ -19,13 +15,13 @@ from app.web.routes import setup_routes
 
 
 class Application(AiohttpApplication):
-    config: Optional[Config] = None
-    store: Optional[Store] = None
-    database: Optional[Database] = None
+    config: Config | None = None
+    store: Store | None = None
+    database: Database | None = None
 
 
 class Request(AiohttpRequest):
-    admin: Optional[Admin] = None
+    admin: Admin | None = None
 
     @property
     def app(self) -> Application:
@@ -54,10 +50,7 @@ def setup_app(config_path: str) -> Application:
     setup_config(app, config_path)
     setup_routes(app)
     setup_aiohttp_apispec(
-        app,
-        title='API server',
-        url='/docs/json',
-        swagger_path='/docs'
+        app, title="API server", url="/docs/json", swagger_path="/docs"
     )
     setup_middlewares(app)
     setup_aiohttp_session(app, EncryptedCookieStorage(app.config.session.key))

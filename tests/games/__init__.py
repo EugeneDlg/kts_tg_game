@@ -6,7 +6,7 @@ def game2dict(game: Game):
         "id": int(game.id),
         "created_at": str(game.created_at),
         "chat_id": int(game.chat_id),
-        "players": [player2dict(player) for player in game.players]
+        "players": [player2dict(player) for player in game.players],
     }
 
 

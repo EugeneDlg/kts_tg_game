@@ -4,7 +4,7 @@ admin:
   email: admin@admin.com
   password: admin
 database:
-  host: 127.0.0.1 
+  host: 127.0.0.1
   port: 5432
   user: kts_user
   password: kts_pass
@@ -16,3 +16,10 @@ rabbitmq:
 bot:
   token: vk1.a.k4yiNRRUw70giVm_uHQ0O5J7wW953re2eBzS9uVltEmcUdFqq9n5xPXGJfz4sLkyeVRsQsOfOocmdY_6KVPXKxWRdv0DpD62s3z7gTabyk2oCXP9M5IsdohbINPVU-yPNik4JLj0lqzp98I3rUL85SagDd-XTfFIZSxhyMzKXIdK6O-dqJXfmewqOBwY2bwHewDmmlpEAgRwsTxPpubDXg
   group_id: 218878450
+game:
+  max_points: 2
+  players: 2
+  thinking_timer: 30
+  captain_timer: 30
+  answer_timer: 30
+  top_timer: 2

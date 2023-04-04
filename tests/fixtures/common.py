@@ -1,21 +1,16 @@
-import asyncio
+import datetime
 import logging
 import os
-import datetime
 from hashlib import sha256
 from unittest.mock import AsyncMock
-from sqlalchemy.ext.asyncio import AsyncSession
 
 import pytest
-import pytest_asyncio
 from aiohttp.test_utils import TestClient, loop_context
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.admin.models import Admin, AdminModel
-from app.game.models import Game, Player, GameScore, GameModel, PlayerModel
-from app.store import Database
-from app.store import Store
+from app.game.models import Game, GameModel, PlayerModel
+from app.store import Database, Store
 from app.web.app import setup_app
 from app.web.config import Config
 
@@ -30,7 +25,7 @@ def event_loop():
 def server():
     app = setup_app(
         config_path=os.path.join(
-            os.path.abspath(os.path.dirname(__file__)), "..", "config.yaml"
+            os.path.abspath(os.path.dirname(__file__)), "..", "..", "config.yml"
         )
     )
     app.on_startup.clear()
@@ -101,25 +96,20 @@ async def admin(cli, db_session, config: Config) -> Admin:
 async def game_1(db_session: AsyncSession) -> Game:
     chat_id = 111
     created_at = datetime.datetime.now()
-    player_id = 1
     vk_id = 777
     name = "Fuf"
     last_name = "Poop"
-    new_players = [
-        PlayerModel(
-            vk_id=vk_id,
-            name=name,
-            last_name=last_name
-        )
-    ]
-    game = GameModel(chat_id=chat_id,
-                     created_at=created_at,
-                     players=new_players)
+    new_players = [PlayerModel(vk_id=vk_id, name=name, last_name=last_name)]
+    game = GameModel(
+        chat_id=chat_id, captain=[], created_at=created_at, players=new_players
+    )
     async with db_session.begin() as session:
         session.add(game)
-    return Game(id=1, chat_id=chat_id,
-                created_at=created_at,
-                players=new_players)
-
-
-
+    return Game(
+        id=1,
+        chat_id=chat_id,
+        captain=[],
+        speaker=[],
+        created_at=created_at,
+        players=new_players,
+    )

@@ -1,10 +1,3 @@
-import json
-import random
-import typing
-from typing import Optional
-
-from aiohttp.client import ClientSession
-
 from app.base.base_accessor import BaseAccessor
 
 

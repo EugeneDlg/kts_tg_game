@@ -1,14 +1,12 @@
 import datetime
+
 import pytest
-from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.future import select
 
-from app.game.models import Game, GameModel, Player, PlayerModel
+from app.game.models import Game, GameModel, Player
 from app.store import Store
-from tests.games import game2dict
 from tests.utils import check_empty_table_exists
-from tests.utils import ok_response
 
 
 class TestGamesStore:
@@ -28,13 +26,15 @@ class TestGamesStore:
                 vk_id=vk_id,
                 name=name,
                 last_name=last_name,
-                scores=None
+                scores=None,
             )
         ]
-        game = await store.game.create_game(chat_id=chat_id,
-                                            created_at=created_at,
-                                            players=[],
-                                            new_players=new_players)
+        game = await store.game.create_game(
+            chat_id=chat_id,
+            created_at=created_at,
+            players=[],
+            new_players=new_players,
+        )
         assert type(game) is Game
 
         async with cli.app.database.session() as session:
@@ -46,7 +46,7 @@ class TestGamesStore:
         assert game.chat_id == chat_id
 
     async def test_create_game_unique_id_constraint(
-            self, cli, store: Store, game_1: Game
+        self, cli, store: Store, game_1: Game
     ):
         chat_id = 111
         created_at = datetime.datetime.now()
@@ -60,15 +60,18 @@ class TestGamesStore:
                 vk_id=vk_id,
                 name=name,
                 last_name=last_name,
-                scores=None
+                scores=None,
             )
         ]
         with pytest.raises(IntegrityError) as exc_info:
-            await store.game.create_game(chat_id=chat_id,
-                                         created_at=created_at,
-                                         players=[],
-                                         new_players=new_players)
+            await store.game.create_game(
+                chat_id=chat_id,
+                created_at=created_at,
+                players=[],
+                new_players=new_players,
+            )
         assert exc_info.value.orig.pgcode == "23505"
+
 
 #     async def test_get_theme_by_id(self, store: Store, theme_1: Theme):
 #         theme = await store.quizzes.get_theme_by_id(theme_1.id)
