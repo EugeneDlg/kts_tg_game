@@ -76,18 +76,18 @@ class BotManager:
             return Update(
                 type=message["type"],
                 object=InfoUpdateObject(
-                    vk_user_request=message["object"]["id"],
-                    name=message["object"]["first_name"],
-                    last_name=message["object"]["last_id"],
-                    peer_id=message["object"]["peer_id"],
-                    event_id=message["object"]["event_id"],
+                    vk_user_request=message["vk_user_request"],
+                    name=message["first_name"],
+                    last_name=message["last_name"],
+                    peer_id=message["peer_id"],
+                    event_id=message["event_id"],
                 )
             )
 
     async def handle_updates(self, update: Update):
         update = self.deserialize(update)
         if update.type == "vk_user_request":
-            vk_user_request = update.object.user_id
+            vk_user_request = update.object.vk_user_request
             name = update.object.name
             last_name = update.object.last_name
             peer_id = update.object.peer_id
@@ -132,7 +132,6 @@ class BotManager:
             except Exception as err:
                 self.logger.info(err)
         elif update.type == "message_new":
-            breakpoint()
             text = update.object.text
             message = Message(user_id=user_id, peer_id=peer_id, text=text)
             try:
@@ -261,8 +260,8 @@ class BotManager:
 
     async def publish_message(
         self,
-        text: str,
-        peer_id: int,
+        text: str = None,
+        peer_id: int = None,
         keyboard: dict = None,
         user_id: int = None,
         event_data: dict = None,
@@ -311,9 +310,10 @@ class BotManager:
         player = await self.game.create_player(
             vk_id=vk_id,
             name=name,
-            last_name=last_name
+            last_name=last_name,
+            games=[]
         )
-        breakpoint()
+
         event = Event(event_id=event_id, user_id=vk_id,
                       peer_id=peer_id, command=command)
         await self.register_handler(event=event)
@@ -326,7 +326,7 @@ class BotManager:
         self.top_task[game_id] = task
 
     async def spin_top_and_show_answer(self, game_id: int, peer_id: int):
-        timer = self.app.config.game.top_timer
+        timer = self.rabbitmq.config.game.top_timer
         await asyncio.sleep(timer)
         game = await self.game.get_game_by_id(id=game_id)
         question = await self.game.get_question(
@@ -347,8 +347,8 @@ class BotManager:
         self.round_task[game_id] = task
 
     async def think_and_choose_speaker(self, game_id: int, peer_id: int):
-        timer = self.app.config.game.thinking_timer
-        captain_timer = self.app.config.game.captain_timer
+        timer = self.rabbitmq.config.game.thinking_timer
+        captain_timer = self.rabbitmq.config.game.captain_timer
         await asyncio.sleep(timer)
         params = {"wait_status": CAPTAIN, "wait_time": 0}
         await self.game.update_game(id=game_id, **params)
@@ -398,7 +398,7 @@ class BotManager:
             f"Счёт {new_my_points}:{game.players_points}"
         )
         await self.publish_message(text=text, peer_id=peer_id, keyboard={})
-        if new_my_points == self.app.config.game.max_points:
+        if new_my_points == self.rabbitmq.config.game.max_points:
             await self.finish_game(
                 game_id=game_id, peer_id=peer_id, winner="me"
             )
@@ -407,7 +407,7 @@ class BotManager:
         await self.spin_top_message(peer_id=peer_id)
 
     async def before_register_handler(self, event: Event):
-        user = await self.game.get_player_by_vk_id(
+        user = await self.game.get_player(
             vk_id=event.user_id
         )
         if user is None:
@@ -416,10 +416,10 @@ class BotManager:
         await self.register_handler(event=event)
 
     async def register_handler(self, event: Event):
-        user = await self.game.get_player_by_vk_id(
+        user = await self.game.get_player(
             vk_id=event.user_id
         )
-        full_name = f'{user["name"]} {user["last_name"]}'
+        full_name = f'{user.name} {user.last_name}'
         game = await self.game.get_game(
             chat_id=event.peer_id, status=ACTIVE
         )
@@ -430,7 +430,7 @@ class BotManager:
         game = await self.game.get_game(
             chat_id=event.peer_id, status=REGISTERED
         )
-        player = await self.game.get_player_by_vk_id(
+        player = await self.game.get_player(
             vk_id=event.user_id
         )
         players = []
@@ -499,7 +499,7 @@ class BotManager:
                     chat_id=event.peer_id, status=REGISTERED
                 )
                 # if all players are registered for the game
-                if len(game.players) == self.app.config.game.players:
+                if len(game.players) == self.rabbitmq.config.game.players:
                     captain = random.choice(game.players)
                     params = {"captain": captain}
                     await self.game.update_game(id=game.id, **params)
@@ -546,19 +546,21 @@ class BotManager:
             event_id=event.event_id
         )
 
-
     async def start_handler(self, event: Event):
-        user = await self.app.store.vk_api.get_vk_user_by_id(
-            user_id=event.user_id
+        # user = await self.app.store.vk_api.get_vk_user_by_id(
+        #     user_id=event.user_id
+        # )
+        user = await self.game.get_player(
+            vk_id=event.user_id
         )
-        full_name = f'{user["name"]} {user["last_name"]}'
+        full_name = f'{user.name} {user.last_name}'
         chat_id = event.peer_id
         game = await self.game.get_game(
             chat_id=chat_id, status=REGISTERED
         )
         if game is None:
             raise GameException("Некорректная команда", event_answer=True)
-        player = await self.game.get_player_by_vk_id(
+        player = await self.game.get_player(
             vk_id=event.user_id
         )
         if player is None:
@@ -579,13 +581,13 @@ class BotManager:
         if game.round == 0:
             text = (
                 "Итак, начинаем игру. На обсуждение даётся "
-                f"{self.get_literal_time(self.app.config.game.thinking_timer)}, "
+                f"{self.get_literal_time(self.rabbitmq.config.game.thinking_timer)}, "
                 "после чего даётся ещё "
-                f"{self.get_literal_time(self.app.config.game.captain_timer)}, в течение которых "
+                f"{self.get_literal_time(self.rabbitmq.config.game.captain_timer)}, в течение которых "
                 f"капитан должен выбрать игрока, дающего ответ на вопрос. На ввод ответа отведено "
-                f"{self.get_literal_time(self.app.config.game.answer_timer)}. "
+                f"{self.get_literal_time(self.rabbitmq.config.game.answer_timer)}. "
                 "Крутить волчок и выбирать отвечающего может только капитан команды. "
-                f"Счёт до {self.app.config.game.max_points} очков. Первый раунд!"
+                f"Счёт до {self.rabbitmq.config.game.max_points} очков. Первый раунд!"
             )
             await self.publish_message(
                 text=text,
@@ -596,10 +598,13 @@ class BotManager:
         await self.spin_top_message(peer_id=event.peer_id)
 
     async def speaker_handler(self, event: Event):
-        user = await self.app.store.vk_api.get_vk_user_by_id(
-            user_id=event.user_id
+        # user = await self.app.store.vk_api.get_vk_user_by_id(
+        #     user_id=event.user_id
+        # )
+        user = await self.game.get_player(
+            vk_id=event.user_id
         )
-        full_name = f'{user["name"]} {user["last_name"]}'
+        full_name = f'{user.name} {user.last_name}'
         game = await self.game.get_game(
             chat_id=event.peer_id, status=ACTIVE
         )
@@ -627,7 +632,7 @@ class BotManager:
             captain_title = " капитан" if captain.vk_id == speaker.vk_id else ""
             text = (
                 f"На вопрос отвечает{captain_title} {speaker.name} {speaker.last_name}. "
-                f"На ответ у вас есть {self.get_literal_time(self.app.config.game.answer_timer)}"
+                f"На ответ у вас есть {self.get_literal_time(self.rabbitmq.config.game.answer_timer)}"
             )
             await self.publish_message(
                 text=text, peer_id=event.peer_id, keyboard={}
@@ -637,7 +642,7 @@ class BotManager:
             await self.activate_answer_timer(
                 game_id=game.id,
                 peer_id=event.peer_id,
-                timer=self.app.config.game.answer_timer,
+                timer=self.rabbitmq.config.game.answer_timer,
             )
 
     async def again_game_handler(self, event):
@@ -650,10 +655,13 @@ class BotManager:
         )
 
     async def top_handler(self, event: Event):
-        user = await self.app.store.vk_api.get_vk_user_by_id(
-            user_id=event.user_id
+        # user = await self.app.store.vk_api.get_vk_user_by_id(
+        #     user_id=event.user_id
+        # )
+        user = await self.game.get_player(
+            vk_id=event.user_id
         )
-        full_name = f'{user["name"]} {user["last_name"]}'
+        full_name = f'{user.name} {user.last_name}'
         game = await self.game.get_game(
             chat_id=event.peer_id, status=ACTIVE
         )
@@ -680,27 +688,31 @@ class BotManager:
         await self.activate_top_timer(game_id=game.id, peer_id=event.peer_id)
 
     async def hello_message_handler(self, message: Message):
-        user = await self.app.store.vk_api.get_vk_user_by_id(
-            user_id=message.user_id
-        )
-        full_name = f'{user["name"]} {user["last_name"]}'
+        # user = await self.app.store.vk_api.get_vk_user_by_id(
+        #     user_id=message.user_id
+        # )
+        # full_name = f'{user["name"]} {user["last_name"]}'
         game = await self.game.get_game(
             chat_id=message.peer_id, status=ACTIVE
         )
         if game is not None:
             raise GameException(
-                f"{full_name}, некорректная команда. Игра уже идёт."
+                "Некорректная команда. Игра уже идёт."
             )
         game = await self.game.get_game(
             chat_id=message.peer_id, status=REGISTERED
         )
         if game is None:
-            text = f"{full_name}, Добрый день! Присоединяйтесь к игре."
+            text = "Добрый день! Присоединяйтесь к игре."
             await self.create_game_message(
                 text=text, user_id=message.user_id, peer_id=message.peer_id
             )
         else:
             players = game.players
+            user = await self.game.get_player(
+                vk_id=message.user_id
+            )
+            full_name = f'{user.name} {user.last_name}'
             if message.user_id in [player.vk_id for player in players]:
                 text = (
                     f"{full_name}, Вы уже зарегистрированы как участник в этой игре. "
@@ -716,7 +728,7 @@ class BotManager:
                 ]
                 players = " ,".join(players)
                 text = (
-                    f"{full_name}, идёт регистрация участников игры. "
+                    "Идёт регистрация участников игры. "
                     "Хотите зарегистрироваться? "
                     "С нами следующие игроки: " + players
                 )
@@ -726,10 +738,15 @@ class BotManager:
 
     async def answer_message_handler(self, message):
         text = message.text.strip().lower()
-        user = await self.app.store.vk_api.get_vk_user_by_id(
-            user_id=message.user_id
+        # user = await self.app.store.vk_api.get_vk_user_by_id(
+        #     user_id=message.user_id
+        # )
+        user = await self.game.get_player(
+            vk_id=message.user_id
         )
-        full_name = f'{user["name"]} {user["last_name"]}'
+        if user is None:
+            raise GameException(f"Некорректная команда.")
+        full_name = f'{user.name} {user.last_name}'
         game = await self.game.get_game(
             chat_id=message.peer_id, status=ACTIVE
         )
@@ -738,7 +755,7 @@ class BotManager:
         if game.wait_status == THINKING:
             reminder = (
                 game.wait_time
-                + self.app.config.game.thinking_timer  # type: ignore # noqa: E711
+                + self.rabbitmq.config.game.thinking_timer  # type: ignore # noqa: E711
                 - int(time.time())  # type: ignore # noqa: E711
             )
             raise GameException(
@@ -771,7 +788,7 @@ class BotManager:
                     f"Счёт {new_my_points}:{game.players_points}"
                 )
                 await self.publish_message(text=text, peer_id=message.peer_id)
-                if new_my_points == self.app.config.game.max_points:
+                if new_my_points == self.rabbitmq.config.game.max_points:
                     await self.finish_game(
                         game_id=game.id, peer_id=message.peer_id, winner="me"
                     )
@@ -786,7 +803,7 @@ class BotManager:
                     f"Счёт {game.my_points}:{new_your_points}"
                 )
                 await self.publish_message(text=text, peer_id=message.peer_id)
-                if new_your_points == self.app.config.game.max_points:
+                if new_your_points == self.rabbitmq.config.game.max_points:
                     await self.finish_game(
                         game_id=game.id, peer_id=message.peer_id, winner="you"
                     )

@@ -6,6 +6,8 @@ class Message:
     peer_id: int = None
     text: str = None
     user_id: int = None
+    name: str = None
+    last_name: str = None
     keyboard: dict = None
     event_id: int = None
     event_data: dict = None
@@ -53,7 +55,7 @@ class Event:
 
 @dataclass
 class InfoUpdateObject:
-    user_id: int
+    vk_user_request: int
     name: str
     last_name: str
     peer_id: int

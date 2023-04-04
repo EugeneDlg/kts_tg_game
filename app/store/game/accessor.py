@@ -34,7 +34,7 @@ class GameAccessor:
         db_players = []
         for player in players:
             db_players.append(
-                await self._get_player_by_vk_id_sql_model(player.vk_id)
+                await self.get_player(player.vk_id)
             )
         new_players_models = [
             PlayerModel(
@@ -196,6 +196,16 @@ class GameAccessor:
                     .where(PlayerModel.vk_id == vk_id)
                     .options(joinedload(PlayerModel.scores))
                     .options(joinedload(GameScoreModel.games))
+                )
+            ).scalar()
+        return player
+
+    async def get_player(self, vk_id: int) -> PlayerModel:
+        async with self.database.session.begin() as session:
+            player = (
+                await session.execute(
+                    select(PlayerModel)
+                    .where(PlayerModel.vk_id == vk_id)
                 )
             ).scalar()
         return player
