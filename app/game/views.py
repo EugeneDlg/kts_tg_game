@@ -97,8 +97,8 @@ class GameAddView(View):
 class GameGetView(View):
     @docs(
         tags=["game"],
-        summary="Get a certain game",
-        description="Get a certain game",
+        summary="Get a list of games with a certain chat ID and a status",
+        description="Get a list of games with a certain chat ID and a status",
     )
     # @request_schema(GameSchema)
     @response_schema(GameResponseSchema, 200)

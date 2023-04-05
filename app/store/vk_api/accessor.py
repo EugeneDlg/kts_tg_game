@@ -1,4 +1,5 @@
 import json
+import logging
 import random
 import typing
 
@@ -62,25 +63,25 @@ class VkApiAccessor(BaseAccessor):
             self.key = resp_json["response"]["key"]
         print("!!long_poll: ", resp_json)
 
-    async def get_vk_user_by_id(
-            self,
-            user_id: int,
-    ):
-        params = {
-            "user_ids": user_id,
-            "access_token": self.app.config.bot.token,
-        }
-        url = self._build_query(
-            host="https://api.vk.com/method/", method="users.get", params=params
-        )
-        async with self.app.store.vk_api.session.get(url) as response:
-            resp_json = await response.json()
-        user_info = resp_json["response"][0]
-        return {
-            "user_id": user_id,
-            "name": user_info["first_name"],
-            "last_name": user_info["last_name"],
-        }
+    # async def get_vk_user_by_id(
+    #         self,
+    #         user_id: int,
+    # ):
+    #     params = {
+    #         "user_ids": user_id,
+    #         "access_token": self.app.config.bot.token,
+    #     }
+    #     url = self._build_query(
+    #         host="https://api.vk.com/method/", method="users.get", params=params
+    #     )
+    #     async with self.app.store.vk_api.session.get(url) as response:
+    #         resp_json = await response.json()
+    #     user_info = resp_json["response"][0]
+    #     return {
+    #         "user_id": user_id,
+    #         "name": user_info["first_name"],
+    #         "last_name": user_info["last_name"],
+    #     }
 
     async def poll(self):
         url = self._build_query(
@@ -95,7 +96,7 @@ class VkApiAccessor(BaseAccessor):
         )
         async with self.session.get(url) as resp:
             data = await resp.json()
-            # self.logger.info(data)
+            self.logger.info(data)
             self.ts = data["ts"]
             raw_updates = data.get("updates", [])
         return raw_updates
@@ -134,7 +135,7 @@ class VkApiAccessor(BaseAccessor):
         print("!!!Send: ", params)
         async with self.session.get(url) as response:
             resp_json = await response.json()
-        # self.logger.info(resp_json)
+        self.logger.info(resp_json)
         if message.get("vk_user_request") is not None:
             reply = {
                 "type": "vk_user_request",

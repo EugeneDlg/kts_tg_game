@@ -1,7 +1,6 @@
 import typing
 
 from app.store.database.database import Database
-from rabbitmq.rabbitmq import Rabbitmq
 
 if typing.TYPE_CHECKING:
     from app.web.app import Application

@@ -2,6 +2,7 @@ import asyncio
 from asyncio.exceptions import CancelledError
 import json
 from typing import TYPE_CHECKING, Optional
+import logging
 import aio_pika
 from aio_pika.pool import Pool
 from aio_pika import Message
@@ -21,6 +22,8 @@ class Rabbitmq:
         self.output_queue = output_queue
         self.on_startup = []
         self.on_cleanup = []
+        self.logger = logging.getLogger("RabbitMQ")
+        logging.basicConfig(level=logging.INFO)
 
     async def connect(self, *args, **kwargs) -> None:
         self.connection_pool = Pool(self.get_connection, max_size=2)
@@ -69,7 +72,7 @@ class Rabbitmq:
             await self.connection_pool.close()
 
     async def publish(self, update: dict) -> None:
-        print(f"!!PUBLISH for {self.output_queue}:: {update}")
+        self.logger.info(f"!!PUBLISH for {self.output_queue}:: {update}")
         async with self.channel_pool.acquire() as channel:
             message = json.dumps(update)
             await channel.default_exchange.publish(
@@ -79,7 +82,7 @@ class Rabbitmq:
     async def consume(self, callback) -> Message:
         async def on_message(message):
             ret_mes = json.loads(message.body.decode())
-            print("!!!CONSUME: ", ret_mes)
+            self.logger.info("!!!CONSUME: ", ret_mes)
             await callback(ret_mes)
             await message.ack()
 
@@ -98,11 +101,6 @@ class Rabbitmq:
             #         print(f"CONSUME on {self.input_queue} ::{ret_mes}")
             #         if queue.name in message.body.decode():
             #             break
-
-    # async def consume(self):
-    #     async with self.connection_pool, self.channel_pool:
-    #         task = asyncio.create_task(self.consume_())
-    #         await task
 
     async def start(self, *args, **kwargs):
         await self.connect()
