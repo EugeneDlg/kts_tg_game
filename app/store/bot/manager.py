@@ -86,6 +86,7 @@ class BotManager:
 
     async def handle_updates(self, update: Update):
         update = self.deserialize(update)
+        self.logger.info("!!!Bot: ", update.type)
         if update.type == "vk_user_request":
             vk_user_request = update.object.vk_user_request
             name = update.object.name
@@ -225,7 +226,6 @@ class BotManager:
     async def publish_speaker_selection_message(
         self, game_id: int, peer_id: int, text: str
     ):
-        # breakpoint()
         captain = await self.game.get_captain(id=game_id)
         game = await self.game.get_game_by_id(id=game_id)
         other_players = [
@@ -248,7 +248,7 @@ class BotManager:
 
     async def next_round_message(self, peer_id: int):
         text = "Следующий раунд!"
-        await self.publish_message(text=text, peer_id=peer_id, keyboard={})
+        await self.publish_message(text=text, peer_id=peer_id)
 
     async def spin_top_message(self, peer_id: int):
         text = "Капитан, крутите волчок, чтобы выбрать вопрос"
@@ -313,7 +313,6 @@ class BotManager:
             last_name=last_name,
             games=[]
         )
-
         event = Event(event_id=event_id, user_id=vk_id,
                       peer_id=peer_id, command=command)
         await self.register_handler(event=event)
@@ -416,7 +415,7 @@ class BotManager:
         await self.register_handler(event=event)
 
     async def register_handler(self, event: Event):
-        user = await self.game.get_player(
+        user = player = await self.game.get_player_as_sql_model(
             vk_id=event.user_id
         )
         full_name = f'{user.name} {user.last_name}'
@@ -429,9 +428,6 @@ class BotManager:
             )
         game = await self.game.get_game(
             chat_id=event.peer_id, status=REGISTERED
-        )
-        player = await self.game.get_player(
-            vk_id=event.user_id
         )
         players = []
         new_players = []
@@ -463,6 +459,7 @@ class BotManager:
                 event_id=event.event_id,
                 event_data={"type": "show_snackbar"},
             )
+            await asyncio.sleep(1)
             await self.publish_message(text=text, peer_id=event.peer_id)
         # if game has been already created, we add a player to it
         else:
@@ -482,6 +479,9 @@ class BotManager:
             # if a player is new at all, or he was added but to another game
             else:
                 # if he is a new player at all
+                game = await self.game.get_game_as_sql_model(
+                    chat_id=event.peer_id, status=REGISTERED
+                )
                 if player is None:
                     player = await self.game.create_player(
                         vk_id=user["user_id"],
@@ -547,9 +547,6 @@ class BotManager:
         )
 
     async def start_handler(self, event: Event):
-        # user = await self.app.store.vk_api.get_vk_user_by_id(
-        #     user_id=event.user_id
-        # )
         user = await self.game.get_player(
             vk_id=event.user_id
         )
@@ -593,7 +590,6 @@ class BotManager:
                 text=text,
                 user_id=event.user_id,
                 peer_id=event.peer_id,
-                keyboard={},
             )
         await self.spin_top_message(peer_id=event.peer_id)
 
@@ -611,7 +607,7 @@ class BotManager:
         command = event.command
         m = re.search(r"^speaker(\d+)", command)
         speaker_id = int(m.group(1))
-        speaker = await self.game.get_player_by_vk_id(speaker_id)
+        speaker = await self.game.get_player(speaker_id)
         if game is None:
             raise GameException("Некорректная команда.")
         if game.wait_status not in [CAPTAIN, EXPIRED]:
@@ -655,9 +651,6 @@ class BotManager:
         )
 
     async def top_handler(self, event: Event):
-        # user = await self.app.store.vk_api.get_vk_user_by_id(
-        #     user_id=event.user_id
-        # )
         user = await self.game.get_player(
             vk_id=event.user_id
         )
@@ -732,7 +725,7 @@ class BotManager:
                     "Хотите зарегистрироваться? "
                     "С нами следующие игроки: " + players
                 )
-                await self.publish_message(
+                await self.create_game_message(
                     text=text, user_id=message.user_id, peer_id=message.peer_id
                 )
 
