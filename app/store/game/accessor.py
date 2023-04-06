@@ -1,10 +1,9 @@
 import collections
 from datetime import datetime
 
-from sqlalchemy import and_, delete, func, select, distinct
+from sqlalchemy import and_, delete, func, select
 from sqlalchemy.orm import joinedload
 
-from app.base.base_accessor import BaseAccessor
 from app.base.utils import to_dataclass
 from app.game.models import (
     AnswerModel,
@@ -152,7 +151,7 @@ class GameAccessor:
             return None
         return game[0][0]
 
-    async def _get_game_by_id(self, id: int) -> GameModel:
+    async def _get_game_by_id(self, id: int) -> list[GameModel]:
         async with self.database.session.begin() as session:
             game = (
                 await session.execute(

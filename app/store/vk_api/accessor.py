@@ -7,7 +7,6 @@ from aiohttp.client import ClientSession
 
 from app.base.base_accessor import BaseAccessor
 from app.store.vk_api.poller import Poller
-from app.store.bot.dataclassess import Message
 
 if typing.TYPE_CHECKING:
     from app.web.app import Application
@@ -61,7 +60,7 @@ class VkApiAccessor(BaseAccessor):
             self.server = resp_json["response"]["server"]
             self.ts = resp_json["response"]["ts"]
             self.key = resp_json["response"]["key"]
-        print("!!long_poll: ", resp_json)
+        self.logger.info(resp_json)
 
     # async def get_vk_user_by_id(
     #         self,
@@ -132,7 +131,7 @@ class VkApiAccessor(BaseAccessor):
                     method="messages.sendMessageEventAnswer",
                     params=params,
                 )
-        print("!!!Send: ", params)
+        self.logger.info("Send: " + str(params))
         async with self.session.get(url) as response:
             resp_json = await response.json()
         self.logger.info(resp_json)
@@ -146,4 +145,4 @@ class VkApiAccessor(BaseAccessor):
                 "event_id": message.get("event_id")
             }
             await self.app.publish(reply)
-        print("!!!Reply: ", resp_json)
+        self.logger.info("Reply: " + str(resp_json))

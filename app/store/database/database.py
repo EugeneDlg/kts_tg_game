@@ -11,8 +11,8 @@ from app.store.database.sqlalchemy_base import db
 if typing.TYPE_CHECKING:
     from app.web.app import Application
 
-TABLES = ["admins", "games", "players", "used_questions"]
-TABLES_SEQ = ["admins", "games", "players"]
+TABLES = ["games", "players", "used_questions"]
+TABLES_SEQ = ["games", "players"]
 
 
 class Database:
