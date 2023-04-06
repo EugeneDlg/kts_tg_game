@@ -183,7 +183,7 @@ class PlayerGetView(View):
         vk_id = query.get("vk_id")
         if vk_id is None or not vk_id.isnumeric():
             raise HTTPBadRequest(text="Invalid user vk_id")
-        player = await self.store.game.get_player_by_vk_id(vk_id=int(vk_id))
+        player = await self.store.game.get_player_with_scores_by_vk_id(vk_id=int(vk_id))
         if player is None:
             raise HTTPNotFound(text="Player not found")
         return json_response(
