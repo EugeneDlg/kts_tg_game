@@ -415,7 +415,7 @@ class BotManager:
         await self.register_handler(event=event)
 
     async def register_handler(self, event: Event):
-        user = player = await self.game.get_player_as_sql_model(
+        user = player = await self.game.get_player(
             vk_id=event.user_id
         )
         full_name = f'{user.name} {user.last_name}'
@@ -479,7 +479,7 @@ class BotManager:
             # if a player is new at all, or he was added but to another game
             else:
                 # if he is a new player at all
-                game = await self.game.get_game_as_sql_model(
+                game = await self.game.get_game(
                     chat_id=event.peer_id, status=REGISTERED
                 )
                 if player is None:
@@ -824,13 +824,14 @@ class BotManager:
                 "Вы проиграли! Надеюсь, в следующий раз вам повезёт. "
                 + scores_text  # type: ignore # noqa: E711
             )
-            await self.publish_message(text=text, peer_id=peer_id, keyboard={})
+            await self.publish_message(text=text, peer_id=peer_id)
         elif winner == "you":
             text = "Вы выиграли! Искренне поздравляю! " + scores_text
-            await self.publish_message(text=text, peer_id=peer_id, keyboard={})
+            await self.publish_message(text=text, peer_id=peer_id)
         else:
             text = "Победила дружба:) Игра закончилась вничью. " + scores_text
-            await self.publish_message(text=text, peer_id=peer_id, keyboard={})
+            await self.publish_message(text=text, peer_id=peer_id)
+        asyncio.sleep(1)
         text = "Хотите ли сыграть ещё?"
         await self.publish_message(
             text=text,

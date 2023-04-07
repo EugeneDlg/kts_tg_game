@@ -1,0 +1,99 @@
+version: "3.10"
+services:
+  api:
+    container_name: "api_app"
+    build:
+      context: .
+    env_file:
+      - .env
+    entrypoint: sh -c 'python -m alembic upgrade head && python main.py'
+    networks:
+      - www_network
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+  poller:
+    container_name: "poller_app"
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    entrypoint: sh -c 'python main_poller.py'
+    env_file:
+      - .env
+    networks:
+      - www_network
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+  bot:
+    container_name: "bot_app"
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    entrypoint: sh -c 'python main_bot.py'
+    env_file:
+      - .env
+    networks:
+      - www_network
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+  sender:
+    container_name: "sender_app"
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    entrypoint: sh -c 'python main_sender.py'
+    env_file:
+      - .env
+    networks:
+      - www_network
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+  rabbitmq:
+    image: rabbitmq:3.11-management-alpine
+    container_name: "www_rabbitmq"
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    env_file:
+      - .env
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-admin}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS:-password}
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    networks:
+      - www_network
+  db:
+    container_name: "www_db"
+    image: postgres:15-alpine
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+      - POSTGRES_DB=${DB_NAME:-postgres}
+    expose:
+      - "5432"
+    ports:
+      - "5432:5432"
+    networks:
+      - www_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d ${DB_NAME} -U ${DB_USER}"]
+      interval: 5s
+      timeout: 20s
+      retries: 100
+networks:
+  www_network:
+    driver: bridge
