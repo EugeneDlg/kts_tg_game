@@ -58,7 +58,7 @@ services:
         condition: service_healthy
   rabbitmq:
     image: rabbitmq:3.11-management-alpine
-    container_name: "rabbitmq"
+    container_name: "www_rabbitmq"
     ports:
       - "5672:5672"
       - "15672:15672"

@@ -45,10 +45,10 @@ class GameAccessor:
             )
             for player in new_players
         ]
-        players.extend(new_players_models)
+        db_players.extend(new_players_models)
         async with self.database.session.begin() as session:
             game = GameModel(
-                chat_id=chat_id, players=players, created_at=created_at
+                chat_id=chat_id, players=db_players, created_at=created_at
             )
             session.add(game)
         return to_dataclass(game)
