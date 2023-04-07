@@ -40,11 +40,10 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-    depends_on:
       db:
         condition: service_healthy
   sender:
-    container_name: "poller_sender"
+    container_name: "sender_app"
     build:
       context: .
       dockerfile: ./Dockerfile

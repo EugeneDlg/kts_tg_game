@@ -824,13 +824,14 @@ class BotManager:
                 "Вы проиграли! Надеюсь, в следующий раз вам повезёт. "
                 + scores_text  # type: ignore # noqa: E711
             )
-            await self.publish_message(text=text, peer_id=peer_id, keyboard={})
+            await self.publish_message(text=text, peer_id=peer_id)
         elif winner == "you":
             text = "Вы выиграли! Искренне поздравляю! " + scores_text
-            await self.publish_message(text=text, peer_id=peer_id, keyboard={})
+            await self.publish_message(text=text, peer_id=peer_id)
         else:
             text = "Победила дружба:) Игра закончилась вничью. " + scores_text
-            await self.publish_message(text=text, peer_id=peer_id, keyboard={})
+            await self.publish_message(text=text, peer_id=peer_id)
+        asyncio.sleep(1)
         text = "Хотите ли сыграть ещё?"
         await self.publish_message(
             text=text,
