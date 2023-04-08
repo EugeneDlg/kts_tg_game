@@ -11,6 +11,10 @@ class PlayerSchema(Schema):
     games = fields.Nested("GameSchemaNotNested", many=True, required=False)
 
 
+class PlayerVkIdSchema(Schema):
+    vk_id = fields.Int(required=True)
+
+
 class PlayerSchemaNotNested(Schema):
     id = fields.Int(required=False)
     vk_id = fields.Int(required=True)
@@ -84,6 +88,7 @@ class ScoreSchemaNotNested(Schema):
 class GameSchema(Schema):
     id = fields.Int(required=False)
     chat_id = fields.Int(required=True)
+    status = fields.Str(required=True)
     players = fields.Nested(PlayerSchemaNotNested, many=True, required=True)
 
 

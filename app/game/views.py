@@ -17,6 +17,7 @@ from app.game.schemes import (
     GameSchema,
     GameSchemaBeforeResponse,
     GameSchemaForCreateBeforeResponse,
+    PlayerVkIdSchema,
     PlayerListResponseSchema,
     PlayerListSchemaBeforeResponse,
     PlayerResponseSchema,
@@ -100,7 +101,7 @@ class GameGetView(View):
         summary="Get a list of games with a certain chat ID and a status",
         description="Get a list of games with a certain chat ID and a status",
     )
-    # @request_schema(GameSchema)
+    @request_schema(GameSchema)
     @response_schema(GameResponseSchema, 200)
     @check_auth
     async def get(self):
@@ -115,6 +116,33 @@ class GameGetView(View):
         if game is None:
             raise HTTPNotFound(text="Game not found")
         return json_response(data=GameSchemaBeforeResponse().dump(game))
+
+    async def post(self):
+        raise HTTPMethodNotAllowed("post", ["get"], text="not implemented")
+
+
+class GameDeleteView(View):
+    @docs(
+        tags=["game"],
+        summary="Delete a game with a certain ID",
+        description="Delete a game with a certain ID",
+    )
+    @request_schema(GameSchema)
+    @response_schema(GameResponseSchema, 200)
+    @check_auth
+    async def delete(self) -> None:
+        query = self.request.rel_url.query
+        id_ = query.get("id")
+        if id_ is None or not id_.isnumeric():
+            raise HTTPBadRequest(text="Invalid Game Id")
+        game = await self.store.game.get_game_by_id(id=int(id_))
+        if game is None:
+            raise HTTPNotFound(text="Game not found")
+        await self.store.game.delete_game(id=id_)
+        return json_response(data="Game is deleted")
+
+    async def get(self):
+        raise HTTPMethodNotAllowed("get", ["post"], text="not implemented")
 
     async def post(self):
         raise HTTPMethodNotAllowed("post", ["get"], text="not implemented")
@@ -171,10 +199,10 @@ class PlayerAddView(View):
 class PlayerGetView(View):
     @docs(
         tags=["player"],
-        summary="Get a certain player",
-        description="Get a certain player",
+        summary="Get a certain player by VK Id",
+        description="Get a certain player by VK Id",
     )
-    # @request_schema(GameSchema)
+    @request_schema(PlayerVkIdSchema)
     @response_schema(PlayerScoreResponseSchema, 200)
     @check_auth
     async def get(self):

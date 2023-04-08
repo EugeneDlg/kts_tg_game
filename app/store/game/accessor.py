@@ -6,7 +6,6 @@ from sqlalchemy.orm import joinedload
 
 from app.base.utils import to_dataclass
 from app.game.models import (
-    AnswerModel,
     Game,
     GameCaptainModel,
     GameModel,
@@ -18,6 +17,8 @@ from app.game.models import (
     Question,
     QuestionModel,
     UsedQuestionsModel,
+    AnswerModel,
+    Answer,
 )
 
 
@@ -25,6 +26,7 @@ class GameAccessor:
     def __init__(self, db):
         self.database = db
 
+    @to_dataclass
     async def create_game(
             self,
             chat_id: int,
@@ -35,7 +37,7 @@ class GameAccessor:
         db_players = []
         for player in players:
             db_players.append(
-                await self._get_player_as_sql_model(player.vk_id)
+                await self._get_player_as_orm_model(player.vk_id)
             )
         new_players_models = [
             PlayerModel(
@@ -51,21 +53,21 @@ class GameAccessor:
                 chat_id=chat_id, players=db_players, created_at=created_at
             )
             session.add(game)
-        return to_dataclass(game)
+        return game
 
     async def get_game(
             self, chat_id: int, status: str
     ) -> Game:
-        game = await self._get_game(chat_id=chat_id, status=status)
+        game = await self._get_game_as_orm_tuple(chat_id=chat_id, status=status)
         return self.games_from_sql(game, many=False)
 
-    async def _get_game_as_sql_model(self, chat_id: int, status: str) -> GameModel:
-        game = await self._get_game(chat_id=chat_id, status=status)
+    async def _get_game_as_orm(self, chat_id: int, status: str) -> GameModel:
+        game = await self._get_game_as_orm_tuple(chat_id=chat_id, status=status)
         if game is None or len(game) == 0:
             return None
         return game[0][0]
 
-    async def _get_game(self, chat_id: int, status: str) -> tuple[GameModel]:
+    async def _get_game_as_orm_tuple(self, chat_id: int, status: str) -> tuple[GameModel]:
         async with self.database.session.begin() as session:
             game = (
                 await session.execute(
@@ -84,24 +86,6 @@ class GameAccessor:
     def games_from_sql(game_all: list[GameModel], many: bool) -> list[Game]:
         if game_all is None or len(game_all) == 0:
             return None
-        # if not many:
-        #     game_instance = game_all[0]
-        #     player_instance = game_all[1]
-        #     return Game(
-        #         id=game_instance.id,
-        #         chat_id=game_instance.chat_id,
-        #         created_at=game_instance.created_at,
-        #         current_question_id=game_instance.current_question_id,
-        #         wait_status=game_instance.wait_status,
-        #         wait_time=game_instance.wait_time,
-        #         status=game_instance.status,
-        #         my_points=game_instance.my_points,
-        #         players_points=game_instance.players_points,
-        #         round=game_instance.round,
-        #         players=player_instance,
-        #         speaker=None,
-        #         captain=None
-        #     )
         games = collections.defaultdict(list)
         for row in game_all:
             game_instance = row[0]
@@ -142,16 +126,16 @@ class GameAccessor:
     #     return game
 
     async def get_game_by_id(self, id: int) -> Game:
-        game = await self._get_game_by_id(id)
+        game = await self._get_game_by_id_as_orm_tuple(id)
         return self.games_from_sql(game, many=False)
 
-    async def _get_game_by_id_as_sql_model(self, id: int) -> GameModel:
-        game = await self._get_game_by_id(id)
+    async def _get_game_by_id_as_orm(self, id: int) -> GameModel:
+        game = await self._get_game_by_id_as_orm_tuple(id)
         if game is None or len(game) == 0:
             return None
         return game[0][0]
 
-    async def _get_game_by_id(self, id: int) -> list[GameModel]:
+    async def _get_game_by_id_as_orm_tuple(self, id: int) -> list[GameModel]:
         async with self.database.session.begin() as session:
             game = (
                 await session.execute(
@@ -163,12 +147,6 @@ class GameAccessor:
             ).all()
         return game
 
-    # async def get_game_by_id(self, id: int) -> Game:
-    #     game = await self._get_game_by_id(id=id)
-    #     if game is not None:
-    #         return to_dataclass(game)
-    #     return None
-
     async def update_game(self, id: int, **params):
         status = params.get("status")
         wait_status = params.get("wait_status")
@@ -177,7 +155,7 @@ class GameAccessor:
         round_ = params.get("round")
         wait_time = params.get("wait_time")
         current_question_id = params.get("current_question_id")
-        game = await self._get_game_by_id_as_sql_model(id=id)
+        game = await self._get_game_by_id_as_orm(id=id)
         game.status = status if status is not None else game.status
         game.wait_status = (
             wait_status if wait_status is not None else game.wait_status
@@ -213,6 +191,14 @@ class GameAccessor:
             session.add(game)
         return game
 
+    async def delete_game(self, id: int) -> None:
+        async with self.database.session.begin() as session:
+            game = await self._get_game_by_id_as_orm(id=id)
+            await session.delete(game)
+        return None
+
+
+
     async def list_games(self, status: str = None) -> list[Game]:
         async with self.database.session.begin() as session:
             if status is None:
@@ -244,28 +230,30 @@ class GameAccessor:
     #     games = games_.scalars().unique().all()
     #     return [to_dataclass(game) for game in games if game is not None]
 
+    @to_dataclass
     async def create_player(
             self, vk_id: int, name: str, last_name: str, games: list[Game]
     ) -> Player:
         db_games = []
         for game in games:
             db_games.append(
-                await self._get_game_by_id_as_sql_model(game.id)
+                await self._get_game_by_id_as_orm(game.id)
             )
         async with self.database.session.begin() as session:
             player = PlayerModel(
                 vk_id=vk_id, name=name, last_name=last_name, games=db_games
             )
             session.add(player)
-        return to_dataclass(player)
+        return player
 
+    @to_dataclass
     async def get_player(self, vk_id: int) -> Player:
-        player = await self._get_player_as_sql_model(vk_id)
+        player = await self._get_player_as_orm_model(vk_id)
         if player is None:
             return None
-        return to_dataclass(player)
+        return player
 
-    async def _get_player_as_sql_model(self, vk_id: int) -> PlayerModel:
+    async def _get_player_as_orm_model(self, vk_id: int) -> PlayerModel:
         async with self.database.session.begin() as session:
             player = (
                 await session.execute(
@@ -275,7 +263,7 @@ class GameAccessor:
             ).scalar()
         return player
 
-    async def _get_player_with_scores_by_vk_id(self, vk_id: int) -> PlayerModel:
+    async def _get_player_with_scores_by_vk_id_as_orm(self, vk_id: int) -> PlayerModel:
         async with self.database.session.begin() as session:
             player = (
                 await session.execute(
@@ -287,13 +275,14 @@ class GameAccessor:
             ).scalar()
         return player
 
+    @to_dataclass
     async def get_player_with_scores_by_vk_id(self, vk_id: int) -> Player:
-        game = await self._get_player_with_scores_by_vk_id(vk_id=vk_id)
+        game = await self._get_player_with_scores_by_vk_id_as_orm(vk_id=vk_id)
         if game is None:
             return None
-        return to_dataclass(game)
+        return game
 
-    async def _get_player_with_scores_by_names(
+    async def _get_player_with_scores_by_names_as_orm(
             self, name: str, last_name: str
     ) -> PlayerModel:
         async with self.database.session.begin() as session:
@@ -312,13 +301,12 @@ class GameAccessor:
             ).scalar()
         return player
 
-    async def get_player_with_scores_by_names(self, name: str, last_name: str) -> Player:
-        return to_dataclass(
-            await self._get_player_with_scores_by_names(
-                name=name, last_name=last_name
-            )
-        )
+    @to_dataclass
+    async def get_player_with_scores_by_names_as_orm(self, name: str, last_name: str) -> Player:
+        player = await self._get_player_with_scores_by_names_as_orm(name=name, last_name=last_name)
+        return player
 
+    @to_dataclass
     async def list_players_by_game(
             self, game_id: int, status: str = None
     ) -> list[Player]:
@@ -336,11 +324,9 @@ class GameAccessor:
                 .unique()
                 .all()
             )
-        return [
-            to_dataclass(player) for player in players if player is not None
-        ]
+        return players
 
-    async def _get_score(self, player_id: int, game_id: int):
+    async def _get_score_as_orm(self, player_id: int, game_id: int):
         async with self.database.session.begin() as session:
             score = (
                 await session.execute(
@@ -357,7 +343,7 @@ class GameAccessor:
     async def update_player_score(
             self, player_id: int, game_id: int, points: int = None
     ):
-        score = await self._get_score(player_id=player_id, game_id=game_id)
+        score = await self._get_score_as_orm(player_id=player_id, game_id=game_id)
         points_ = score.points
         score.points = points_ + points if points is not None else points_ + 1
         async with self.database.session.begin() as session:
@@ -375,6 +361,7 @@ class GameAccessor:
             ).scalar()
         return score
 
+    @to_dataclass
     async def get_captain(self, id: int) -> Player:
         async with self.database.session.begin() as session:
             game = (
@@ -384,8 +371,9 @@ class GameAccessor:
                     .options(joinedload(GameModel.captain))
                 )
             ).scalar()
-        return to_dataclass(game.captain[0])
+        return game.captain[0]
 
+    @to_dataclass
     async def get_speaker(self, id: int) -> Player:
         async with self.database.session.begin() as session:
             game = (
@@ -395,7 +383,7 @@ class GameAccessor:
                     .options(joinedload(GameModel.speaker))
                 )
             ).scalar()
-        return to_dataclass(game.speaker[0])
+        return game.speaker[0]
 
     async def delete_speaker(self, game_id: int) -> None:
         async with self.database.session.begin() as session:
@@ -424,6 +412,7 @@ class GameAccessor:
     #     players = players_.scalars().unique().all()
     #     return players
 
+    @to_dataclass
     async def get_latest_game(self) -> Game:
         async with self.database.session.begin() as session:
             game = (
@@ -435,7 +424,7 @@ class GameAccessor:
                     .options(joinedload(PlayerModel.scores))
                 )
             ).scalar()
-        return to_dataclass(game)
+        return game
 
     async def link_player_to_game(
             self, player_id: int, game_id: int
@@ -452,27 +441,23 @@ class GameAccessor:
             session.add(game_score)
         return game_score
 
+    @to_dataclass
     async def create_question(self, text: str, answer: dict) -> Question:
         answer_model = AnswerModel(text=answer["text"].strip().lower())
         text = text.strip()
         async with self.database.session.begin() as session:
             question = QuestionModel(text=text, answer=[answer_model])
             session.add(question)
-        return to_dataclass(question)
+        return question
 
-    async def get_all_questions_amount(self):
+    async def get_all_questions_amount(self) -> int:
         async with self.database.session.begin() as session:
             amount = (
                 await session.execute(select(func.count(QuestionModel.id)))
             ).scalar()
         return amount
 
-    async def get_all_question_ids(self):
-        async with self.database.session.begin() as session:
-            ids = (await session.execute(select(QuestionModel.id))).scalars()
-        return ids.unique().all()
-
-    async def get_question_ids(self):
+    async def get_question_ids(self) -> list[int]:
         async with self.database.session.begin() as session:
             ids = (
                 await session.execute(
@@ -485,9 +470,10 @@ class GameAccessor:
                     .filter(UsedQuestionsModel.question_id == None)  # type: ignore # noqa: E711
                 )
             ).scalars()
+        breakpoint()
         return ids.unique().all()
 
-    async def _get_question(self, question_id: int) -> QuestionModel:
+    async def _get_question_as_orm(self, question_id: int) -> QuestionModel:
         async with self.database.session.begin() as session:
             question = (
                 await session.execute(
@@ -498,11 +484,13 @@ class GameAccessor:
             ).scalar()
         return question
 
+    @to_dataclass
     async def get_question(self, question_id: int) -> Question:
-        question = await self._get_question(question_id)
-        return to_dataclass(question)
+        question = await self._get_question_as_orm(question_id)
+        return question
 
-    async def list_questions(self):
+    @to_dataclass
+    async def list_questions(self) -> list[Question]:
         async with self.database.session.begin() as session:
             questions = (
                 (
@@ -516,13 +504,10 @@ class GameAccessor:
                 .unique()
                 .all()
             )
-        return [
-            to_dataclass(question)
-            for question in questions
-            if question is not None
-        ]
+        return questions
 
-    async def list_answers(self):
+    @to_dataclass
+    async def list_answers(self) -> list[Answer]:
         async with self.database.session.begin() as session:
             answers = (
                 (await session.execute(select(AnswerModel)))
@@ -530,11 +515,9 @@ class GameAccessor:
                 .unique()
                 .all()
             )
-        return [
-            to_dataclass(answer) for answer in answers if answer is not None
-        ]
+        return answers
 
-    async def mark_question_as_used(self, question_id: int, game_id: int):
+    async def mark_question_as_used(self, question_id: int, game_id: int) -> UsedQuestionsModel:
         async with self.database.session.begin() as session:
             link = UsedQuestionsModel(question_id=question_id, game_id=game_id)
             session.add(link)
@@ -551,6 +534,6 @@ class GameAccessor:
 
     async def delete_question(self, question_id: int) -> None:
         async with self.database.session.begin() as session:
-            question = await self._get_question(question_id)
+            question = await self._get_question_as_orm(question_id)
             await session.delete(question)
         return None
