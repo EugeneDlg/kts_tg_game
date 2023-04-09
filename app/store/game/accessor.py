@@ -153,6 +153,7 @@ class GameAccessor:
         my_points = params.get("my_points")
         players_points = params.get("players_points")
         round_ = params.get("round")
+        blitz_round = params.get("blitz_round")
         wait_time = params.get("wait_time")
         current_question_id = params.get("current_question_id")
         game = await self._get_game_by_id_as_orm(id=id)
@@ -167,6 +168,7 @@ class GameAccessor:
             else game.players_points
         )
         game.round = round_ if round_ is not None else game.round
+        game.blitz_round = blitz_round if blitz_round is not None else game.blitz_round
         game.wait_time = wait_time if wait_time is not None else game.wait_time
         game.current_question_id = (
             current_question_id
@@ -197,8 +199,6 @@ class GameAccessor:
             await session.delete(game)
         return None
 
-
-
     async def list_games(self, status: str = None) -> list[Game]:
         async with self.database.session.begin() as session:
             if status is None:
@@ -219,16 +219,6 @@ class GameAccessor:
                     )
                 ).all()
         return self.games_from_sql(games_all, many=True)
-
-    # async def list_games(self) -> list[Game]:
-    #     async with self.database.session.begin() as session:
-    #         games_ = await session.execute(
-    #             select(GameModel, PlayerModel)
-    #             .options(joinedload(GameModel.players))
-    #             .options(joinedload(PlayerModel.scores))
-    #         )
-    #     games = games_.scalars().unique().all()
-    #     return [to_dataclass(game) for game in games if game is not None]
 
     @to_dataclass
     async def create_player(
@@ -305,6 +295,12 @@ class GameAccessor:
     async def get_player_with_scores_by_names_as_orm(self, name: str, last_name: str) -> Player:
         player = await self._get_player_with_scores_by_names_as_orm(name=name, last_name=last_name)
         return player
+
+    async def delete_player(self, vk_id: int) -> None:
+        async with self.database.session.begin() as session:
+            player = await self._get_player_as_orm_model(vk_id)
+            await session.delete(player)
+        return None
 
     @to_dataclass
     async def list_players_by_game(

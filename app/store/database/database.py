@@ -35,10 +35,11 @@ class Database:
         self._db = db
 
     async def connect(self, app: "Application" = None):
+        pass
         # async with self._engine.begin() as session:
         #     await session.run_sync(db.metadata.create_all)
-        email = self.app.config.admin.email
-        password = self.app.config.admin.password
+        # email = self.app.config.admin.email
+        # password = self.app.config.admin.password
         # user = await self.app.store.admins.get_by_email(email)
         # if user is None:
         #     await self.app.store.admins.create_admin(email, password)

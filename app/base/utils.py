@@ -41,7 +41,7 @@ def to_dataclass(function):
         if isinstance(model_instance, list):
             lst = []
             for item in model_instance:
-                obj = to_dataclass(item, chain)
+                obj = to_dataclass_convert(item, chain)
                 if obj is None:
                     return
                 lst.append(obj)
@@ -53,14 +53,14 @@ def to_dataclass(function):
         for field in fields:
             attr = model_attributes.get(field.name)
             if isinstance(attr, (list, tuple(models))):
-                dct[field.name] = to_dataclass(attr, chain)
+                dct[field.name] = to_dataclass_convert(attr, chain)
             else:
                 dct[field.name] = attr
         chain.pop()
         return dataclass_model(**dct)
 
-    def wrapper(*args, **kwargs):
-        orm_model = function(*args, **kwargs)
+    async def wrapper(*args, **kwargs):
+        orm_model = await function(*args, **kwargs)
         if isinstance(orm_model, list):
             return [
                 to_dataclass_convert(model) for model in orm_model

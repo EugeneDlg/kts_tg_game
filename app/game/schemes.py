@@ -141,6 +141,7 @@ class AnswerSchema(Schema):
 class QuestionSchema(Schema):
     id = fields.Int(required=False)
     text = fields.Str(required=True)
+    blitz = fields.Boolean(required=True)
     answer = fields.Nested(AnswerSchema, required=True)
 
 

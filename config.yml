@@ -4,7 +4,7 @@ admin:
   email: admin@admin.com
   password: admin
 database:
-  host: www_db
+  host: 127.0.0.1
   port: 5432
   user: kts_user
   password: kts_pass

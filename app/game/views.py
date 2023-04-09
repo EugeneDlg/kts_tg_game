@@ -125,7 +125,8 @@ class GameDeleteView(View):
     @docs(
         tags=["game"],
         summary="Delete a game with a certain ID",
-        description="Delete a game with a certain ID",
+        description="Delete a game with a certain ID. "
+                    "For administrative purpose only.",
     )
     @request_schema(GameSchema)
     @response_schema(GameResponseSchema, 200)
@@ -221,6 +222,32 @@ class PlayerGetView(View):
     async def post(self):
         raise HTTPMethodNotAllowed("post", ["get"], text="not implemented")
 
+
+class PlayerDeleteView(View):
+    @docs(
+        tags=["player"],
+        summary="Delete a player with a certain VK ID",
+        description="Delete a player with a certain VK ID. "
+                    "For administrative purpose only.",
+    )
+    @request_schema(PlayerVkIdSchema)
+    @check_auth
+    async def delete(self) -> None:
+        query = self.request.rel_url.query
+        vk_id = query.get("vk_id")
+        if vk_id is None or not vk_id.isnumeric():
+            raise HTTPBadRequest(text="Invalid User VK Id")
+        game = await self.store.game.get_player(vk_id)
+        if game is None:
+            raise HTTPNotFound(text="Player not found")
+        await self.store.game.delete_player(vk_id)
+        return json_response(data="Player is deleted")
+
+    async def get(self):
+        raise HTTPMethodNotAllowed("get", ["post"], text="not implemented")
+
+    async def post(self):
+        raise HTTPMethodNotAllowed("post", ["get"], text="not implemented")
 
 class PlayerListView(View):
     @docs(

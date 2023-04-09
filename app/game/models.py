@@ -7,6 +7,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
+    Boolean,
     UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
@@ -48,6 +49,7 @@ class Game:
     my_points: int = 0
     players_points: int = 0
     round: int = 0
+    blitz_round: int = 0
 
     def __getitem__(self, item):
         return getattr(self, item)
@@ -58,6 +60,7 @@ class Question:
     id: int
     text: str
     answer: list["Answer"]
+    blitz: bool = False
     current_game: list[Game] = None
 
 
@@ -104,6 +107,7 @@ class GameModel(db):
     my_points = Column(Integer, nullable=False, default=0)
     players_points = Column(Integer, nullable=False, default=0)
     round = Column(Integer, nullable=False, default=0)
+    blitz_round = Column(Integer, nullable=False, default=0)
     current_question_id = Column(Integer, ForeignKey("questions.id"))
     created_at = Column(DateTime, nullable=False)
 
@@ -187,6 +191,7 @@ class QuestionModel(db):
     __tablename__ = "questions"
     id = Column(Integer, primary_key=True)
     text = Column(String, nullable=False, default="", unique=True)
+    blitz = Column(Boolean, nullable=False, default=False)
     answer = relationship(
         "AnswerModel", back_populates="question", cascade="all, delete"
     )
