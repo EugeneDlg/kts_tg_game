@@ -1,15 +1,18 @@
 import enum
 
 
-class BaseEnum(enum.Enum):
-    def __str__(self):
-        return str(self.value)
+# class BaseEnum(enum.Enum):
+#     def __str__(self):
+#         return str(self.value)
+#
+#     def __eq__(self, other):
+#         return str(self) == str(other)
+#
+#     def __getitem__(self, item):
+#         return self.value[item]
 
-    def __eq__(self, other):
-        return str(self) == str(other)
 
-
-class Status(BaseEnum):
+class Status(enum.StrEnum):
     registered = "registered"
     active = "active"
     finished = "finished"
@@ -22,8 +25,10 @@ class Status(BaseEnum):
     top = "top"
 
 
-class Command(BaseEnum):
-    start = {"command": "start", "label": "Начать игру"}
+class Command(enum.Enum):
+    help = {"command": "help"}
+    start = {"command": "start",
+             "label": "Начать игру"}
     register = {"command": "register",
                 "label": "Присоединиться к игре"}
     hello = {"command": "hello"}
@@ -33,8 +38,17 @@ class Command(BaseEnum):
     top = {"command": "top",
            "label": "Крутить волчок"}
 
+    def __str__(self):
+        return str(self.value)
 
-class UpdateType(BaseEnum):
+    def __eq__(self, other):
+        return str(self) == str(other)
+
+    def __getitem__(self, item):
+        return self.value[item]
+
+
+class UpdateType(enum.StrEnum):
     vk_request = "vk_user_request"
     message_event = "message_event"
     new_message = "message_new"

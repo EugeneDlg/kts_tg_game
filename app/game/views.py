@@ -207,7 +207,6 @@ class PlayerGetView(View):
     @response_schema(PlayerScoreResponseSchema, 200)
     @check_auth
     async def get(self):
-        # breakpoint()
         query = self.request.rel_url.query
         vk_id = query.get("vk_id")
         if vk_id is None or not vk_id.isnumeric():
@@ -299,8 +298,9 @@ class QuestionAddView(View):
         data = self.request["data"]
         text = data["text"].strip()
         answer = data["answer"]
+        blitz = data["blitz"]
         question = await self.store.game.create_question(
-            text=text, answer=answer
+            text=text, blitz=blitz, answer=answer
         )
         return json_response(data=QuestionSchemaBeforeResponse().dump(question))
 
@@ -318,7 +318,7 @@ class QuestionDeleteView(View):
     @check_auth
     async def delete(self):
         query = self.request.rel_url.query
-        question_id = int(query.get("id"))
+        question_id = query.get("id").lower().strip()
         question = await self.store.game.get_question(question_id)
         if question is None:
             raise HTTPNotFound(text="Question not found")
@@ -343,8 +343,8 @@ class QuestionGetView(View):
     @check_auth
     async def get(self):
         query = self.request.rel_url.query
-        question_id = query.get("id")
-        question = await self.store.game.get_question(int(question_id))
+        question_id = query.get("id").lower().strip()
+        question = await self.store.game.get_question(question_id)
         if question is None:
             raise HTTPNotFound(text="Question not found")
         return json_response(data=QuestionSchemaBeforeResponse().dump(question))
@@ -381,8 +381,9 @@ class QuestionListDumpView(View):
     async def get(self):
         questions = await self.store.game.list_questions()
         data = {"questions": questions}
+        dd = QuestionListDumpSchemaBeforeResponse().dump(data)
         return json_response(
-            data=QuestionListDumpSchemaBeforeResponse().dump(data)
+            data=dd
         )
 
     async def post(self):

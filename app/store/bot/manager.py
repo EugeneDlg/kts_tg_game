@@ -26,7 +26,7 @@ if typing.TYPE_CHECKING:
     from rabbitmq.rabbitmq import Rabbitmq
     from app.store.game.accessor import GameAccessor
 
-BLITZ_THINKING_FACTOR = 3
+BLITZ_THINKING_FACTOR = 2
 BLITZ_CAPTAIN_FACTOR = 2
 BLITZ_ANSWER_FACTOR = 2
 
@@ -96,8 +96,15 @@ class BotManager:
         user_id = update.object.user_id
         peer_id = update.object.peer_id
         questions_ids = await self.game.get_question_ids()
+        questions_blitz_ids = await self.game.get_question_ids(blitz=True)
         if len(questions_ids) == 0:
-            text = "В базе данных нет вопросов! Запуск игры невозможен."
+            text = "В базе данных нет вопросов! Запуск игры невозможен. " \
+                   "Срочно попросите администратора добавить вопросы!"
+            await self.publish_message(text=text, peer_id=peer_id)
+            return
+        if len(questions_blitz_ids) == 0:
+            text = "В базе данных нет вопросов для блица! Запуск игры невозможен." \
+                   "Срочно попросите администратора добавить вопросы!"
             await self.publish_message(text=text, peer_id=peer_id)
             return
         if update.type == UpdateType.message_event:
@@ -291,6 +298,8 @@ class BotManager:
         text = message.text.strip().lower()
         if text == Command.hello["command"]:
             await self.hello_message_handler(message)
+        elif text == Command.help["command"]:
+            await self.help_message_handler(message)
         else:
             await self.answer_message_handler(message)
 
@@ -320,22 +329,23 @@ class BotManager:
     async def spin_top(self, game_id: int, peer_id: int):
         timer = self.rabbitmq.config.game.top_timer
         await asyncio.sleep(timer)
-        game = await self.game.get_game_by_id(id=game_id)
-        is_blitz = await self.choose_sector(game_id=game.id)
+        is_blitz = await self.choose_sector()
         if is_blitz:
             await self.start_blitz(game_id=game_id, peer_id=peer_id)
             return
         await self.choose_question(game_id)
+        game = await self.game.get_game_by_id(id=game_id)
         question = await self.game.get_question(
             game.current_question_id
         )
         text = f'Внимание, вопрос! "{question.text}".'
         await self.publish_message(text=text, peer_id=peer_id)
+        await asyncio.sleep(2)
         text = "Время пошло!"
         await self.publish_message(text=text, peer_id=peer_id)
         params = {"wait_status": Status.thinking, "wait_time": int(time.time())}
         await self.game.update_game(id=game.id, **params)
-        await self.activate_thinking_timer(game_id=game.id, peer_id=peer_id)
+        await self.activate_thinking_timer(game_id=game_id, peer_id=peer_id)
 
     async def activate_thinking_timer(self, game_id: int, peer_id: int):
         task = asyncio.create_task(
@@ -345,12 +355,13 @@ class BotManager:
 
     async def think_and_choose_speaker(self, game_id: int, peer_id: int):
         game = await self.game.get_game_by_id(game_id)
-        timer = self.rabbitmq.config.game.thinking_timer // BLITZ_THINKING_FACTOR
         captain_timer = self.rabbitmq.config.game.captain_timer
+        thinking_timer = self.rabbitmq.config.game.thinking_timer
         if game.blitz_round > 0:
+            thinking_timer //= BLITZ_THINKING_FACTOR
             captain_timer //= BLITZ_THINKING_FACTOR
-        await asyncio.sleep(timer)
-        params = {"wait_status": Status.captain, "wait_time": 0}
+        await asyncio.sleep(thinking_timer)
+        params = {"wait_status": Status.captain.value, "wait_time": 0}
         await self.game.update_game(id=game_id, **params)
         text = (
             f"Время на обсуждение вышло. Капитан, выберите отвечающего. У вас есть "
@@ -388,7 +399,7 @@ class BotManager:
         game = await self.game.get_game_by_id(game_id)
         new_my_points = game.my_points + 1
         params = {
-            "wait_status": Status.expired,
+            "wait_status": Status.expired.value,
             "wait_time": 0,
             "my_points": new_my_points,
             "blitz_round": 0,
@@ -404,7 +415,9 @@ class BotManager:
                 game_id=game_id, peer_id=peer_id, winner="me"
             )
             return
+        await asyncio.sleep(2)
         await self.next_round_message(peer_id=peer_id)
+        await asyncio.sleep(1)
         await self.spin_top_message(peer_id=peer_id)
 
     async def before_register_handler(self, event: Event):
@@ -429,7 +442,7 @@ class BotManager:
                 "Некорректная команда. Игра уже идёт", event_answer=True
             )
         game = await self.game.get_game(
-            chat_id=event.peer_id, status=Status.registered
+            chat_id=event.peer_id, status=Status.registered.value
         )
         players = []
         new_players = []
@@ -482,7 +495,7 @@ class BotManager:
             else:
                 # if he is a new player at all
                 game = await self.game.get_game(
-                    chat_id=event.peer_id, status=Status.registered
+                    chat_id=event.peer_id, status=Status.registered.value
                 )
                 if player is None:
                     player = await self.game.create_player(
@@ -498,7 +511,7 @@ class BotManager:
                     )
                 # refresh game instance after adding a new player
                 game = await self.game.get_game(
-                    chat_id=event.peer_id, status=Status.registered
+                    chat_id=event.peer_id, status=Status.registered.value
                 )
                 # if all players are registered for the game
                 if len(game.players) == self.rabbitmq.config.game.players:
@@ -555,7 +568,7 @@ class BotManager:
         full_name = f'{user.name} {user.last_name}'
         chat_id = event.peer_id
         game = await self.game.get_game(
-            chat_id=chat_id, status=Status.registered
+            chat_id=chat_id, status=Status.registered.value
         )
         if game is None:
             raise GameException("Некорректная команда", event_answer=True)
@@ -578,6 +591,15 @@ class BotManager:
         params = {"status": "active"}
         await self.game.update_game(id=game.id, **params)
         if game.round == 0:
+            text = "Капитан, начинаем игру"
+            await self.publish_message(
+                text=text,
+                user_id=event.user_id,
+                peer_id=event.peer_id,
+                event_id=event.event_id,
+                event_data={"type": "show_snackbar"},
+            )
+            await asyncio.sleep(1)
             text = (
                 "Итак, начинаем игру. На обсуждение даётся "
                 f"{self.get_literal_time(self.rabbitmq.config.game.thinking_timer)}, "
@@ -591,8 +613,9 @@ class BotManager:
             await self.publish_message(
                 text=text,
                 user_id=event.user_id,
-                peer_id=event.peer_id,
+                peer_id=event.peer_id
             )
+
         await self.spin_top_message(peer_id=event.peer_id)
 
     async def speaker_handler(self, event: Event):
@@ -601,7 +624,7 @@ class BotManager:
         )
         full_name = f'{user.name} {user.last_name}'
         game = await self.game.get_game(
-            chat_id=event.peer_id, status=Status.active
+            chat_id=event.peer_id, status=Status.active.value
         )
         command = event.command
         m = re.search(r"^speaker(\d+)", command)
@@ -609,7 +632,7 @@ class BotManager:
         speaker = await self.game.get_player(speaker_id)
         if game is None:
             raise GameException("Некорректная команда.")
-        if game.wait_status not in [Status.captain, Status.expired]:
+        if game.wait_status not in [Status.captain.value, Status.expired.value]:
             return
         await self.game.delete_speaker(game_id=game.id)
         captain = await self.game.get_captain(id=game.id)
@@ -635,7 +658,7 @@ class BotManager:
             await self.publish_message(
                 text=text, peer_id=event.peer_id, keyboard={}
             )
-            params = {"wait_status": Status.active, "wait_time": 0,
+            params = {"wait_status": Status.answer, "wait_time": 0,
                       Command.speaker["command"]: speaker}
             await self.game.update_game(id=game.id, **params)
             await self.activate_answer_timer(
@@ -645,6 +668,17 @@ class BotManager:
             )
 
     async def again_game_handler(self, event):
+        text = (
+            f"Играем ещё раз"
+        )
+        await self.publish_message(
+            text=text,
+            user_id=event.user_id,
+            peer_id=event.peer_id,
+            event_id=event.event_id,
+            event_data={"type": "show_snackbar"},
+        )
+        await asyncio.sleep(1)
         text = "Идёт регистрация участников игры"
         keyboard = {
             "buttons": [{"command": Command.register["command"],
@@ -660,7 +694,7 @@ class BotManager:
         )
         full_name = f'{user.name} {user.last_name}'
         game = await self.game.get_game(
-            chat_id=event.peer_id, status=Status.active
+            chat_id=event.peer_id, status=Status.active.value
         )
         round_ = game.round
         captain = await self.game.get_captain(id=game.id)
@@ -670,7 +704,7 @@ class BotManager:
                 event_answer=True,
             )
         round_ += 1
-        params = {"wait_status": Status.wait_ok, "wait_time": 0, "round": round_}
+        params = {"wait_status": Status.wait_ok.value, "wait_time": 0, "round": round_}
         await self.game.update_game(id=game.id, **params)
         await self.publish_message(
             text="Волчок выбирает вопрос...", peer_id=event.peer_id, keyboard={}
@@ -690,7 +724,7 @@ class BotManager:
                 "Некорректная команда. Игра уже идёт."
             )
         game = await self.game.get_game(
-            chat_id=message.peer_id, status=Status.registered
+            chat_id=message.peer_id, status=Status.registered.value
         )
         if game is None:
             text = "Добрый день! Присоединяйтесь к игре."
@@ -735,7 +769,7 @@ class BotManager:
             raise GameException(f"Некорректная команда.")
         full_name = f'{user.name} {user.last_name}'
         game = await self.game.get_game(
-            chat_id=message.peer_id, status=Status.active
+            chat_id=message.peer_id, status=Status.active.value
         )
         if game is None:
             raise GameException(f"{full_name}, некорректная команда.")
@@ -749,7 +783,7 @@ class BotManager:
             raise GameException(
                 f"{full_name}, ещё идёт обсуждение. Осталось {self.get_literal_time(reminder)}"
             )
-        if game.wait_status not in [Status.answer, Status.expired]:
+        if game.wait_status not in [Status.answer.value, Status.expired.value]:
             return
         speaker = await self.game.get_speaker(id=game.id)
         current_question = await self.game.get_question(
@@ -766,7 +800,7 @@ class BotManager:
             )
         if game.wait_status == Status.answer:
             self.answer_task[game.id].cancel()
-            params = {"wait_status": Status.wait_ok, "wait_time": 0}
+            params = {"wait_status": Status.wait_ok.value, "wait_time": 0}
             await self.game.update_game(id=game.id, **params)
             if text not in current_question.answer[0].text.lower():
                 new_my_points = game.my_points + 1
@@ -810,12 +844,24 @@ class BotManager:
                         game_id=game.id, peer_id=message.peer_id, winner="you"
                     )
                     return
+            await asyncio.sleep(2)
             await self.next_round_message(peer_id=message.peer_id)
+            await asyncio.sleep(1)
             await self.spin_top_message(peer_id=message.peer_id)
+
+    async def help_message_handler(self, message: Message):
+        text = (
+            "Используются следующие команды: /hello - запуск регистрации в игре; "
+            "/scores - очки по игрокам; /hello - вывод этой справки."
+        )
+        await self.publish_message(
+            text=text, peer_id=message.peer_id
+        )
+
 
     async def finish_game(self, game_id: int, peer_id: int, winner: str):
         game = await self.game.get_game_by_id(id=game_id)
-        params = {"status": Status.finished}
+        params = {"status": Status.finished.value}
         await self.game.update_game(id=game_id, **params)
         await self.game.unmark_questions_as_used(game_id=game_id)
         scores = ""
@@ -840,7 +886,7 @@ class BotManager:
         else:
             text = "Победила дружба:) Игра закончилась вничью. " + scores_text
             await self.publish_message(text=text, peer_id=peer_id)
-        asyncio.sleep(1)
+        await asyncio.sleep(2)
         text = "Хотите ли сыграть ещё?"
         await self.publish_message(
             text=text,
@@ -851,13 +897,18 @@ class BotManager:
 
     @staticmethod
     async def choose_sector():
-        is_blitz = random.choice([True].extend([False] * 2))
+        seq = [True]
+        # seq.extend([False] * 1)
+        is_blitz = random.choice(seq)
+        print("!!!Blitz ", is_blitz)
         return is_blitz
 
-    async def choose_question(self, game_id):
-        game = await self.game.get_game_by_id(game_id)
-        is_blitz = True if game.blitz_round > 0 else False
-        questions_ids = await self.game.get_question_ids(blitz=is_blitz)
+    async def choose_question(self, game_id, blitz: bool = False):
+        questions_ids = await self.game.get_question_ids(blitz=blitz)
+        if len(questions_ids) == 0:
+            blitz_text = " для блица" if blitz else ""
+            GameException(f"В базе данных закончились вопросы{blitz_text}! "
+                          "Срочно попросите администратора внести новые вопросы!")
         question_id = random.choice(questions_ids)
         params = {"current_question_id": question_id}
         await self.game.update_game(id=game_id, **params)
@@ -867,25 +918,24 @@ class BotManager:
 
     async def start_blitz(self, game_id: int, peer_id: int):
         game = await self.game.get_game_by_id(id=game_id)
-        # question = await self.game.get_question(
-        #     game.current_question_id
-        # )
         text = 'Вам выпал блиц! Вам предстоит ответить на 3 вопроса, ' \
                f"{self.get_literal_time(self.rabbitmq.config.game.thinking_timer // BLITZ_THINKING_FACTOR)}" \
                " обсуждения каждый. Капитан выбирает отвечающего на каждый вопрос."
         await self.publish_message(text=text, peer_id=peer_id)
+        await asyncio.sleep(4)
         await self.proceed_blitz(game_id=game_id, peer_id=peer_id)
 
     async def proceed_blitz(self, game_id: int, peer_id: int):
-        await self.choose_question(game_id)
+        await self.choose_question(game_id, blitz=True)
         game = await self.game.get_game_by_id(game_id)
         params = {"blitz_round": game.blitz_round + 1}
         await self.game.update_game(id=game_id, **params)
         question = await self.game.get_question(
             game.current_question_id
         )
-        text = f'Внимание, блиц-вопрос номер {game.blitz_round}! "{question.text}".'
+        text = f'Внимание, блиц-вопрос номер {game.blitz_round + 1}! "{question.text}".'
         await self.publish_message(text=text, peer_id=peer_id)
+        await asyncio.sleep(2)
         text = "Время пошло!"
         await self.publish_message(text=text, peer_id=peer_id)
         params = {"wait_status": Status.thinking, "wait_time": int(time.time())}

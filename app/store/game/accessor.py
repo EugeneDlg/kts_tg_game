@@ -110,6 +110,7 @@ class GameAccessor:
                 my_points=game_instance.my_points,
                 players_points=game_instance.players_points,
                 round=game_instance.round,
+                blitz_round=game_instance.blitz_round,
                 players=players_instance,
                 speaker=None,
                 captain=None
@@ -438,11 +439,11 @@ class GameAccessor:
         return game_score
 
     @to_dataclass
-    async def create_question(self, text: str, answer: dict) -> Question:
+    async def create_question(self, text: str, blitz: bool, answer: dict) -> Question:
         answer_model = AnswerModel(text=answer["text"].strip().lower())
         text = text.strip()
         async with self.database.session.begin() as session:
-            question = QuestionModel(text=text, answer=[answer_model])
+            question = QuestionModel(text=text, blitz=blitz, answer=[answer_model])
             session.add(question)
         return question
 
@@ -453,7 +454,7 @@ class GameAccessor:
             ).scalar()
         return amount
 
-    async def get_question_ids(self) -> list[int]:
+    async def get_question_ids(self, blitz: bool = False) -> list[int]:
         async with self.database.session.begin() as session:
             ids = (
                 await session.execute(
@@ -463,13 +464,15 @@ class GameAccessor:
                         UsedQuestionsModel.question_id == QuestionModel.id,
                         isouter=True,
                     )
-                    .filter(UsedQuestionsModel.question_id == None)  # type: ignore # noqa: E711
+                    .filter(and_(UsedQuestionsModel.question_id == None,
+                                 QuestionModel.blitz == blitz))  # type: ignore # noqa: E711
                 )
             ).scalars()
-        breakpoint()
-        return ids.unique().all()
 
-    async def _get_question_as_orm(self, question_id: int) -> QuestionModel:
+        res = ids.unique().all()
+        return res
+
+    async def _get_question_as_orm(self, question_id: str) -> QuestionModel:
         async with self.database.session.begin() as session:
             question = (
                 await session.execute(
@@ -481,7 +484,7 @@ class GameAccessor:
         return question
 
     @to_dataclass
-    async def get_question(self, question_id: int) -> Question:
+    async def get_question(self, question_id: str) -> Question:
         question = await self._get_question_as_orm(question_id)
         return question
 
@@ -513,7 +516,7 @@ class GameAccessor:
             )
         return answers
 
-    async def mark_question_as_used(self, question_id: int, game_id: int) -> UsedQuestionsModel:
+    async def mark_question_as_used(self, question_id: str, game_id: int) -> UsedQuestionsModel:
         async with self.database.session.begin() as session:
             link = UsedQuestionsModel(question_id=question_id, game_id=game_id)
             session.add(link)

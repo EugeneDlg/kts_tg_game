@@ -6,8 +6,6 @@ from sqlalchemy.orm import sessionmaker
 
 from app.store.database.sqlalchemy_base import db
 
-# from app.admin.models import Admin
-
 if typing.TYPE_CHECKING:
     from app.web.app import Application
 

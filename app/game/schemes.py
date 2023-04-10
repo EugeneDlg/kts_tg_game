@@ -106,7 +106,7 @@ class GameSchemaBeforeResponse(Schema):
     my_points = fields.Int(required=True)
     player_points = fields.Int(required=True)
     round = fields.Int(required=True)
-    current_question_id = fields.Int(required=True)
+    current_question_id = fields.Str(required=True)
     players = fields.Nested(
         PlayerScoreSchema2BeforeResponse, many=True, required=True
     )
@@ -134,30 +134,32 @@ class GameListResponseSchema(OkResponseSchema):
 
 
 class AnswerSchema(Schema):
-    id = fields.Int(required=False)
+    id = fields.Str(required=False)
     text = fields.Str(required=True)
 
 
 class QuestionSchema(Schema):
-    id = fields.Int(required=False)
+    id = fields.Str(required=False)
     text = fields.Str(required=True)
     blitz = fields.Boolean(required=True)
     answer = fields.Nested(AnswerSchema, required=True)
 
 
 class QuestionIdSchema(Schema):
-    id = fields.Int(required=True)
+    id = fields.Str(required=True)
 
 
 class QuestionSchemaBeforeResponse(Schema):
-    id = fields.Int(required=False)
+    id = fields.Str(required=False)
     text = fields.Str(required=True)
+    blitz = fields.Boolean(required=True)
     answer = fields.Nested(AnswerSchema, required=True, many=True)
 
 
 class QuestionDumpSchema(Schema):
-    id = fields.Int(required=False)
+    id = fields.Str(required=False)
     text = fields.Str(required=True)
+    blitz = fields.Boolean(required=True)
 
 
 # response
@@ -185,7 +187,7 @@ class QuestionListDumpResponseSchema(OkResponseSchema):
 
 
 class AnswerDumpSchema(AnswerSchema):
-    question_id = fields.Int(required=True)
+    question_id = fields.Str(required=True)
 
 
 class AnswerListDumpSchemaBeforeResponse(Schema):

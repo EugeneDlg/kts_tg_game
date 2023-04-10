@@ -1,4 +1,5 @@
 import datetime
+import uuid
 from dataclasses import dataclass
 
 from sqlalchemy import (
@@ -11,6 +12,7 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.postgresql import UUID
 
 from app.store.database.sqlalchemy_base import db
 
@@ -42,7 +44,7 @@ class Game:
     speaker: list[Player]
     captain: list[Player]
     players: list[Player]
-    current_question_id: int = 0
+    current_question_id: str
     wait_status: str = "ok"
     wait_time: int = 0
     status: str = "registered"
@@ -57,7 +59,7 @@ class Game:
 
 @dataclass
 class Question:
-    id: int
+    id: str
     text: str
     answer: list["Answer"]
     blitz: bool = False
@@ -66,7 +68,7 @@ class Question:
 
 @dataclass
 class Answer:
-    id: int
+    id: str
     text: str
     question_id: str
 
@@ -108,7 +110,7 @@ class GameModel(db):
     players_points = Column(Integer, nullable=False, default=0)
     round = Column(Integer, nullable=False, default=0)
     blitz_round = Column(Integer, nullable=False, default=0)
-    current_question_id = Column(Integer, ForeignKey("questions.id"))
+    current_question_id = Column(UUID(as_uuid=True), ForeignKey("questions.id"))
     created_at = Column(DateTime, nullable=False)
 
     speaker = relationship(
@@ -189,7 +191,7 @@ class GameSpeakerModel(db):
 
 class QuestionModel(db):
     __tablename__ = "questions"
-    id = Column(Integer, primary_key=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     text = Column(String, nullable=False, default="", unique=True)
     blitz = Column(Boolean, nullable=False, default=False)
     answer = relationship(
@@ -203,10 +205,10 @@ class QuestionModel(db):
 
 class AnswerModel(db):
     __tablename__ = "answers"
-    id = Column(Integer, primary_key=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     text = Column(String, nullable=False, default="")
     question_id = Column(
-        Integer, ForeignKey("questions.id", ondelete="CASCADE")
+        UUID(as_uuid=True), ForeignKey("questions.id", ondelete="CASCADE")
     )
     question = relationship("QuestionModel", back_populates="answer")
 
@@ -217,7 +219,7 @@ class UsedQuestionsModel(db):
         Integer, ForeignKey("games.id", ondelete="CASCADE"), primary_key=True
     )
     question_id = Column(
-        Integer,
+        UUID(as_uuid=True),
         ForeignKey("questions.id", ondelete="CASCADE"),
         primary_key=True,
     )

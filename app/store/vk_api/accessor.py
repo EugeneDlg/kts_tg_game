@@ -131,9 +131,12 @@ class VkApiAccessor(BaseAccessor):
                     method="messages.sendMessageEventAnswer",
                     params=params,
                 )
-        self.logger.info("Send: " + str(params))
-        async with self.session.get(url) as response:
-            resp_json = await response.json()
+        self.logger.info(f"Send: {str(params)}")
+        for _ in range(3):
+            async with self.session.get(url) as response:
+                resp_json = await response.json()
+            if resp_json is not None:
+                break
         self.logger.info(resp_json)
         if message.get("vk_user_request") is not None:
             reply = {
@@ -145,4 +148,4 @@ class VkApiAccessor(BaseAccessor):
                 "event_id": message.get("event_id")
             }
             await self.app.publish(reply)
-        self.logger.info("Reply: " + str(resp_json))
+        self.logger.info(f"Reply: {str(resp_json)}")

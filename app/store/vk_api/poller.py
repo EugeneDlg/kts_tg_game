@@ -1,4 +1,6 @@
 from typing import Optional
+import logging
+from logging import getLogger
 
 import asyncio
 from asyncio import Task, Future
@@ -10,6 +12,8 @@ class Poller:
         self.vk_accessor = vk_accessor
         self.is_running = False
         self.poll_task: Optional[Task] = None
+        self.logger = getLogger("accessor")
+        logging.basicConfig(level=logging.INFO)
 
     async def start(self):
         self.is_running = True

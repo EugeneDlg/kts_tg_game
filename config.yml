@@ -10,7 +10,7 @@ database:
   password: kts_pass
   database: kts
 rabbitmq:
-  host: www_rabbitmq
+  host: 127.0.0.1
   user: guest
   password: guest
 bot:
@@ -22,4 +22,4 @@ game:
   thinking_timer: 30
   captain_timer: 30
   answer_timer: 30
-  top_timer: 2
+  top_timer: 5

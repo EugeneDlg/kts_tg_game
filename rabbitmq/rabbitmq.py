@@ -1,17 +1,14 @@
 import asyncio
-from asyncio.exceptions import CancelledError
 import json
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 import logging
 import aio_pika
 from aio_pika.pool import Pool
 from aio_pika import Message
 from aio_pika.exceptions import ConnectionClosed
+
+
 # from app.store.bot.manager import
-
-
-if TYPE_CHECKING:
-    from app.web.app import Application
 
 
 class Rabbitmq:
@@ -34,12 +31,6 @@ class Rabbitmq:
             if self.output_queue is not None:
                 await channel.declare_queue(self.output_queue, auto_delete=False)
 
-    def close_callback(self, connection: aio_pika.Connection, error: Exception) -> None:
-        if isinstance(error, ConnectionClosed):
-            code, text = error.args
-            if code == 320:  # "CONNECTION_FORCED - broker forced connection closure with reason 'shutdown'"
-                print("Handle shutdown here ...")
-
     async def get_connection(self):
         loop = asyncio.get_event_loop()
         connection = await aio_pika.connect_robust(
@@ -48,18 +39,7 @@ class Rabbitmq:
             password=self.config.rabbitmq.password,
             loop=loop
         )
-        # connection.add_close_callback(self.close_callback)
         return connection
-
-    # async def get_connection(self):
-    #     loop = asyncio.get_event_loop()
-    #     connection = await aio_pika.connect_robust(
-    #         host=self.app.config.rabbitmq.host,
-    #         user=self.app.config.rabbitmq.user,
-    #         password=self.app.config.rabbitmq.password,
-    #         loop=loop
-    #     )
-    #     return connection
 
     async def get_channel(self):
         async with self.connection_pool.acquire() as connection:
@@ -82,7 +62,7 @@ class Rabbitmq:
     async def consume(self, callback) -> Message:
         async def on_message(message):
             ret_mes = json.loads(message.body.decode())
-            self.logger.info("!!!CONSUME: ", ret_mes)
+            self.logger.info(f"!!!CONSUME: {ret_mes}")
             await callback(ret_mes)
             await message.ack()
 
@@ -93,14 +73,6 @@ class Rabbitmq:
                 auto_delete=False
             )
             await queue.consume(on_message)
-            # async with queue.iterator() as queue_iter:
-            #     async for message in queue_iter:
-            #         ret_mes = json.loads(message.body.decode())
-            #         await callback(ret_mes)
-            #         await message.ack()
-            #         print(f"CONSUME on {self.input_queue} ::{ret_mes}")
-            #         if queue.name in message.body.decode():
-            #             break
 
     async def start(self, *args, **kwargs):
         await self.connect()
