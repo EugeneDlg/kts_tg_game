@@ -5,18 +5,16 @@ from aiohttp_apispec import setup_aiohttp_apispec
 from aiohttp_session import setup as setup_aiohttp_session
 from aiohttp_session.cookie_storage import EncryptedCookieStorage
 
-from app.admin.models import Admin
-from app.store import Store, setup_store
-from app.store.database.database import Database
-from app.web.config import Config, setup_config
-from app.web.logger import setup_logging
-from app.web.middlewares import setup_middlewares
-from app.web.routes import setup_routes
+from apps.admin.models import Admin
+from db.database import Database
+from config.config import Config, setup_config
+from apps.api.logger import setup_logging
+from apps.api.middlewares import setup_middlewares
+from apps.api.routes import setup_routes
 
 
 class Application(AiohttpApplication):
     config: Config | None = None
-    store: Store | None = None
     database: Database | None = None
 
 
@@ -33,9 +31,9 @@ class View(AiohttpView):
     def request(self) -> Request:
         return super().request
 
-    @property
-    def store(self) -> Store:
-        return self.request.app.store
+    # @property
+    # def store(self) -> Store:
+    #     return self.request.app.store
 
     @property
     def data(self) -> dict:
@@ -54,5 +52,8 @@ def setup_app(config_path: str) -> Application:
     )
     setup_middlewares(app)
     setup_aiohttp_session(app, EncryptedCookieStorage(app.config.session.key))
-    setup_store(app)
+    setup_modules(app)
     return app
+
+def setup_moules(app: Application):
+    

@@ -5,7 +5,7 @@ from sqlalchemy import select
 
 from app.admin.models import AdminModel
 from app.base.base_accessor import BaseAccessor
-from app.store.database.database import Database
+from db.database import Database
 
 if typing.TYPE_CHECKING:
     from app.web.app import Application

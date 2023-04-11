@@ -1,7 +1,10 @@
+import os
+from pathlib import Path
 import typing
 from dataclasses import dataclass
 
 import yaml
+from dotenv import load_dotenv
 
 if typing.TYPE_CHECKING:
     from app.web.app import Application
@@ -65,27 +68,32 @@ def setup_config(app: "Application", config_path: str):
     with open(config_path) as f:
         raw_config = yaml.safe_load(f)
 
+    load_dotenv(".env")
+    db_user = os.getenv("DB_USER")
+    db_pass = os.getenv("DB_PASS")
+    db_host = os.getenv("DB_HOST")
+    db_port = os.getenv("DB_PORT", 5432)
+    db_name = os.getenv("DB_NAME")
+    rabbitmq_host = os.getenv("RABBITMQ_HOST")
+    rabbitmq_user = os.getenv("RABBITMQ_USER")
+    rabbitmq_pass = os.getenv("RABBITMQ_PASS")
+
     app.config = Config(
-        admin=AdminConfig(
-            email=raw_config["admin"]["email"],
-            password=raw_config["admin"]["password"],
-        ),
-        session=SessionConfig(key=raw_config["session"]["key"]),
         bot=BotConfig(
             token=raw_config["bot"]["token"],
             group_id=raw_config["bot"]["group_id"],
         ),
         database=DatabaseConfig(
-            user=raw_config["database"]["user"],
-            password=raw_config["database"]["password"],
-            host=raw_config["database"]["host"],
-            port=raw_config["database"]["port"],
-            database=raw_config["database"]["database"],
+            user=db_user,
+            password=db_pass,
+            host=db_host,
+            port=db_port,
+            database=db_name,
         ),
         rabbitmq=RabbitMQConfig(
-            user=raw_config["rabbitmq"]["user"],
-            password=raw_config["rabbitmq"]["password"],
-            host=raw_config["rabbitmq"]["host"],
+            user=rabbitmq_user,
+            password=rabbitmq_pass,
+            host=rabbitmq_host,
         ),
         game=GameConfig(
             max_points=raw_config["game"]["max_points"],
