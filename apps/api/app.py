@@ -12,6 +12,9 @@ from apps.api.logger import setup_logging
 from apps.api.middlewares import setup_middlewares
 from apps.api.routes import setup_routes
 
+from apps.admin.accessor.accessor import AdminAccessor
+from apps.game.accessor.accessor import GameAccessor
+
 
 class Application(AiohttpApplication):
     config: Config | None = None
@@ -31,9 +34,9 @@ class View(AiohttpView):
     def request(self) -> Request:
         return super().request
 
-    # @property
-    # def store(self) -> Store:
-    #     return self.request.app.store
+    @property
+    def app(self) -> Application:
+        return self.request.app
 
     @property
     def data(self) -> dict:
@@ -55,5 +58,11 @@ def setup_app(config_path: str) -> Application:
     setup_modules(app)
     return app
 
-def setup_moules(app: Application):
-    
+
+def setup_modules(app: Application):
+    app.database = Database(app)
+    app.admins = AdminAccessor(app.database)
+    app.game = GameAccessor(app.database)
+
+    app.on_startup.append(app.database.connect)
+    app.on_cleanup.append(app.database.disconnect)

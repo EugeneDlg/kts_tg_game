@@ -8,11 +8,11 @@ import pytest
 from aiohttp.test_utils import TestClient, loop_context
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.admin.models import Admin, AdminModel
-from app.game.models import Game, GameModel, PlayerModel
-from app.store import Database, Store
-from app.web.app import setup_app
-from app.web.config import Config
+from apps.admin.models import Admin, AdminModel
+from apps.game.models import Game, GameModel, PlayerModel
+from db.database import Database
+from apps.api.app import setup_app
+from config.config import Config
 
 
 @pytest.fixture(scope="session")
@@ -30,18 +30,17 @@ def server():
     )
     app.on_startup.clear()
     app.on_shutdown.clear()
-    app.store.vk_api = AsyncMock()
-    app.store.vk_api.send_message = AsyncMock()
+    app.vk_api = AsyncMock()
+    app.vk_api.send_message = AsyncMock()
     app.database = Database(app)
     app.on_startup.append(app.database.connect)
     app.on_shutdown.append(app.database.disconnect)
-
     return app
 
 
-@pytest.fixture
-def store(server) -> Store:
-    return server.store
+# @pytest.fixture
+# def store(server) -> Store:
+#     return server.store
 
 
 @pytest.fixture

@@ -4,8 +4,8 @@ from datetime import datetime
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.orm import joinedload
 
-from app.base.utils import to_dataclass
-from app.game.models import (
+from apps.base.utils import to_dataclass
+from apps.game.models import (
     Game,
     GameCaptainModel,
     GameModel,
@@ -85,7 +85,7 @@ class GameAccessor:
     @staticmethod
     def games_from_sql(game_all: list[GameModel], many: bool) -> list[Game]:
         if game_all is None or len(game_all) == 0:
-            return None
+            return [] if many else None
         games = collections.defaultdict(list)
         for row in game_all:
             game_instance = row[0]
@@ -305,22 +305,36 @@ class GameAccessor:
 
     @to_dataclass
     async def list_players_by_game(
-            self, game_id: int, status: str = None
+            self, game_id: int = None,
     ) -> list[Player]:
         async with self.database.session.begin() as session:
-            players = (
-                (
-                    await session.execute(
-                        select(PlayerModel, GameScoreModel)
-                        .where(GameScoreModel.game_id == game_id)
-                        .options(joinedload(PlayerModel.scores))
-                        .options(joinedload(GameScoreModel.games))
+            if game_id is None:
+                players = (
+                    (
+                        await session.execute(
+                            select(PlayerModel, GameScoreModel)
+                            .options(joinedload(PlayerModel.scores))
+                            .options(joinedload(GameScoreModel.games))
+                        )
                     )
+                    .scalars()
+                    .unique()
+                    .all()
                 )
-                .scalars()
-                .unique()
-                .all()
-            )
+            else:
+                players = (
+                    (
+                        await session.execute(
+                            select(PlayerModel, GameScoreModel)
+                            .where(GameScoreModel.game_id == game_id)
+                            .options(joinedload(PlayerModel.scores))
+                            .options(joinedload(GameScoreModel.games))
+                        )
+                    )
+                    .scalars()
+                    .unique()
+                    .all()
+                )
         return players
 
     async def _get_score_as_orm(self, player_id: int, game_id: int):

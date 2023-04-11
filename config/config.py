@@ -7,18 +7,12 @@ import yaml
 from dotenv import load_dotenv
 
 if typing.TYPE_CHECKING:
-    from app.web.app import Application
+    from apps.api.app import Application
 
 
 @dataclass
 class SessionConfig:
     key: str
-
-
-@dataclass
-class AdminConfig:
-    email: str
-    password: str
 
 
 @dataclass
@@ -55,7 +49,6 @@ class GameConfig:
 
 @dataclass
 class Config:
-    admin: AdminConfig
     session: SessionConfig = None
     bot: BotConfig = None
     database: DatabaseConfig = None
@@ -79,6 +72,7 @@ def setup_config(app: "Application", config_path: str):
     rabbitmq_pass = os.getenv("RABBITMQ_PASS")
 
     app.config = Config(
+        session=SessionConfig(key=raw_config["session"]["key"]),
         bot=BotConfig(
             token=raw_config["bot"]["token"],
             group_id=raw_config["bot"]["group_id"],

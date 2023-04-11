@@ -1,6 +1,6 @@
 import typing
 
-from app.game.views import (
+from apps.game.views import (
     AnswerListDumpView,
     GameAddView,
     GameDeleteView,
@@ -19,7 +19,7 @@ from app.game.views import (
 )
 
 if typing.TYPE_CHECKING:
-    from app.web.app import Application
+    from apps.api.app import Application
 
 
 def setup_routes(app: "Application"):

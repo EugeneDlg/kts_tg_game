@@ -13,10 +13,10 @@ from aiohttp.web_exceptions import (
 from aiohttp.web_middlewares import middleware
 from aiohttp_apispec import validation_middleware
 
-from app.web.utils import error_json_response, error_reason, error_text
+from apps.api.utils import error_json_response, error_reason, error_text
 
 if typing.TYPE_CHECKING:
-    from app.web.app import Application, Request
+    from apps.api.app import Application, Request
 
 HTTP_ERROR_CODES = {
     400: "bad_request",
@@ -98,8 +98,6 @@ async def error_handling_middleware(request: "Request", handler):
             message=error_reason(e),
             data=error_text(e),
         )
-    # TODO: обработать все исключения-наследники HTTPException и отдельно Exception, как server error
-    #  использовать текст из HTTP_ERROR_CODES
 
 
 def setup_middlewares(app: "Application"):

@@ -3,12 +3,9 @@ from hashlib import sha256
 
 from sqlalchemy import select
 
-from app.admin.models import AdminModel
-from app.base.base_accessor import BaseAccessor
+from apps.admin.models import AdminModel
+from apps.base.accessor.base_accessor import BaseAccessor
 from db.database import Database
-
-if typing.TYPE_CHECKING:
-    from app.web.app import Application
 
 
 class AdminAccessor(BaseAccessor):

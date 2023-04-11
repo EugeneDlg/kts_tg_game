@@ -4,7 +4,7 @@ from typing import Optional
 
 from sqlalchemy import Column, Integer, String
 
-from app.store.database.sqlalchemy_base import db
+from db.sqlalchemy_base import db
 
 
 @dataclass

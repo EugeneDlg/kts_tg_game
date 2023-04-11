@@ -1,17 +1,6 @@
 import enum
 
 
-# class BaseEnum(enum.Enum):
-#     def __str__(self):
-#         return str(self.value)
-#
-#     def __eq__(self, other):
-#         return str(self) == str(other)
-#
-#     def __getitem__(self, item):
-#         return self.value[item]
-
-
 class Status(enum.StrEnum):
     registered = "registered"
     active = "active"
@@ -26,12 +15,13 @@ class Status(enum.StrEnum):
 
 
 class Command(enum.Enum):
-    help = {"command": "help"}
+    help = {"command": "/help"}
+    hello = {"command": "/hello"}
+    scores = {"command": "/scores"}
     start = {"command": "start",
              "label": "Начать игру"}
     register = {"command": "register",
                 "label": "Присоединиться к игре"}
-    hello = {"command": "hello"}
     again = {"command": "again",
              "label": "Играть ещё"}
     speaker = {"command": "speaker"}

@@ -14,7 +14,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
 
-from app.store.database.sqlalchemy_base import db
+from db.sqlalchemy_base import db
 
 
 @dataclass

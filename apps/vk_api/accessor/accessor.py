@@ -1,15 +1,14 @@
 import json
-import logging
 import random
 import typing
 
 from aiohttp.client import ClientSession
 
-from app.base.base_accessor import BaseAccessor
-from app.store.vk_api.poller import Poller
+from apps.base.accessor.base_accessor import BaseAccessor
+from apps.vk_api.poller import Poller
 
 if typing.TYPE_CHECKING:
-    from app.web.app import Application
+    from apps.api.app import Application
 
 
 class VkApiAccessor(BaseAccessor):
@@ -61,26 +60,6 @@ class VkApiAccessor(BaseAccessor):
             self.ts = resp_json["response"]["ts"]
             self.key = resp_json["response"]["key"]
         self.logger.info(resp_json)
-
-    # async def get_vk_user_by_id(
-    #         self,
-    #         user_id: int,
-    # ):
-    #     params = {
-    #         "user_ids": user_id,
-    #         "access_token": self.app.config.bot.token,
-    #     }
-    #     url = self._build_query(
-    #         host="https://api.vk.com/method/", method="users.get", params=params
-    #     )
-    #     async with self.app.store.vk_api.session.get(url) as response:
-    #         resp_json = await response.json()
-    #     user_info = resp_json["response"][0]
-    #     return {
-    #         "user_id": user_id,
-    #         "name": user_info["first_name"],
-    #         "last_name": user_info["last_name"],
-    #     }
 
     async def poll(self):
         url = self._build_query(

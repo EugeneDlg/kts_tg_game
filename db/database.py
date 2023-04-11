@@ -4,17 +4,15 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.store.database.sqlalchemy_base import db
+from db.sqlalchemy_base import db
 
-if typing.TYPE_CHECKING:
-    from app.web.app import Application
 
 TABLES = ["games", "players", "used_questions"]
 TABLES_SEQ = ["games", "players"]
 
 
 class Database:
-    def __init__(self, app: "Application"):
+    def __init__(self, app: typing.Any):
         self.app = app
         user = app.config.database.user
         password = app.config.database.password

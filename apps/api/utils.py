@@ -8,7 +8,7 @@ from aiohttp.web_exceptions import HTTPForbidden, HTTPUnauthorized
 from aiohttp.web_response import Response
 from aiohttp_session import get_session
 
-from app.admin.models import Admin
+from apps.admin.models import Admin
 
 
 def json_response(data: Any = None, status: str = "ok") -> Response:
@@ -59,7 +59,7 @@ def error_reason(exception):
 async def authenticate(
     email: str, password: str, app: "Application"
 ) -> Admin | None:
-    user = await app.store.admins.get_by_email(email)
+    user = await app.admins.get_by_email(email)
     if user is None:
         raise HTTPForbidden(text="No such user")
     password_ = sha256(password.encode()).hexdigest()
@@ -80,7 +80,7 @@ def check_auth(func):
         delta = dt.timedelta(days=7)
         if dt.datetime.now() - dt.datetime.fromtimestamp(session_time) > delta:
             raise HTTPUnauthorized
-        user = await self.request.app.store.admins.get_by_email(session_email)
+        user = await self.request.app.admins.get_by_email(session_email)
         if user is None:
             raise HTTPForbidden(text="User doesn't exist")
         self.current_user = user

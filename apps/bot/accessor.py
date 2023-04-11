@@ -1,4 +1,4 @@
-from app.base.base_accessor import BaseAccessor
+from apps.base.accessor.base_accessor import BaseAccessor
 
 
 class BotAccessor(BaseAccessor):

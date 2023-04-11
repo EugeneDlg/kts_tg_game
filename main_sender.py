@@ -5,7 +5,7 @@ import signal
 
 from config.config import setup_config
 from rabbitmq.rabbitmq import Rabbitmq
-from app.store.vk_api.accessor import VkApiAccessor
+from apps.vk_api.accessor.accessor import VkApiAccessor
 
 
 async def main():

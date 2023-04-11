@@ -5,8 +5,8 @@ import signal
 
 from config.config import setup_config
 from rabbitmq.rabbitmq import Rabbitmq
-from app.store.bot.manager import BotManager
-from app.store.game.accessor import GameAccessor
+from apps.bot.manager import BotManager
+from apps.game.accessor.accessor import GameAccessor
 from db.database import Database
 
 

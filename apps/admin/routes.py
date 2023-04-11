@@ -1,13 +1,13 @@
 import typing
 
-from app.admin.views import AdminCurrentView
+from apps.admin.views import AdminCurrentView
 
 if typing.TYPE_CHECKING:
-    from app.web.app import Application
+    from apps.api.app import Application
 
 
 def setup_routes(app: "Application"):
-    from app.admin.views import AdminLoginView
+    from apps.admin.views import AdminLoginView
 
     app.router.add_view("/admin.login", AdminLoginView)
     app.router.add_view("/admin.current", AdminCurrentView)

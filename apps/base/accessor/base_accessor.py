@@ -3,7 +3,7 @@ import logging
 from logging import getLogger
 
 if typing.TYPE_CHECKING:
-    from app.web.app import Application
+    from apps.api.app import Application
 
 
 class BaseAccessor:

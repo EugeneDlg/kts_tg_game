@@ -7,7 +7,7 @@ import time
 import typing
 from logging import getLogger
 
-from app.store.bot.dataclassess import (
+from apps.bot.dataclassess import (
     Event,
     EventUpdateObject,
     Message,
@@ -16,7 +16,7 @@ from app.store.bot.dataclassess import (
     InfoUpdateObject
 )
 
-from app.store.bot.enum import (
+from apps.bot.enum import (
     Command,
     Status,
     UpdateType
@@ -24,7 +24,7 @@ from app.store.bot.enum import (
 
 if typing.TYPE_CHECKING:
     from rabbitmq.rabbitmq import Rabbitmq
-    from app.store.game.accessor import GameAccessor
+    from apps.game.accessor.accessor import GameAccessor
 
 BLITZ_THINKING_FACTOR = 2
 BLITZ_CAPTAIN_FACTOR = 2
@@ -300,6 +300,8 @@ class BotManager:
             await self.hello_message_handler(message)
         elif text == Command.help["command"]:
             await self.help_message_handler(message)
+        elif text == Command.scores["command"]:
+            await self.scores_message_handler(message)
         else:
             await self.answer_message_handler(message)
 
@@ -365,7 +367,7 @@ class BotManager:
         await self.game.update_game(id=game_id, **params)
         text = (
             f"Время на обсуждение вышло. Капитан, выберите отвечающего. У вас есть "
-            f"{self.get_literal_time(captain_timer)}."
+            f"{self.get_word_time(captain_timer)}."
         )
         await self.publish_speaker_selection_message(
             game_id=game_id, peer_id=peer_id, text=text
@@ -465,7 +467,8 @@ class BotManager:
                 new_players=new_players,
             )
             text = (
-                f"{full_name}, Вы зарегистрированы. Ждем остальных участников."
+                f"{full_name}, Вы зарегистрированы. Ждем остальных участников. "
+                f"Ещё должно присоединиться if len(game.players) == self.rabbitmq.config.game.players: ###"
             )
             await self.publish_message(
                 text=text,
@@ -602,11 +605,11 @@ class BotManager:
             await asyncio.sleep(1)
             text = (
                 "Итак, начинаем игру. На обсуждение даётся "
-                f"{self.get_literal_time(self.rabbitmq.config.game.thinking_timer)}, "
+                f"{self.get_word_time(self.rabbitmq.config.game.thinking_timer)}, "
                 "после чего даётся ещё "
-                f"{self.get_literal_time(self.rabbitmq.config.game.captain_timer)}, в течение которых "
+                f"{self.get_word_time(self.rabbitmq.config.game.captain_timer)}, в течение которых "
                 f"капитан должен выбрать игрока, дающего ответ на вопрос. На ввод ответа отведено "
-                f"{self.get_literal_time(self.rabbitmq.config.game.answer_timer)}. "
+                f"{self.get_word_time(self.rabbitmq.config.game.answer_timer)}. "
                 "Крутить волчок и выбирать отвечающего может только капитан команды. "
                 f"Счёт до {self.rabbitmq.config.game.max_points} очков. Первый раунд!"
             )
@@ -653,7 +656,7 @@ class BotManager:
             text = (
                 f"На вопрос отвечает{captain_title} {speaker.name} {speaker.last_name}. "
                 "На ответ у вас есть "
-                f"{self.get_literal_time(self.rabbitmq.config.game.answer_timer // factor)}"
+                f"{self.get_word_time(self.rabbitmq.config.game.answer_timer // factor)}"
             )
             await self.publish_message(
                 text=text, peer_id=event.peer_id, keyboard={}
@@ -777,11 +780,11 @@ class BotManager:
             factor = BLITZ_THINKING_FACTOR if game.blitz_round > 0 else 1
             reminder = (
                     game.wait_time
-                    + self.rabbitmq.config.game.thinking_timer//factor  # type: ignore # noqa: E711
+                    + self.rabbitmq.config.game.thinking_timer // factor  # type: ignore # noqa: E711
                     - int(time.time())  # type: ignore # noqa: E711
             )
             raise GameException(
-                f"{full_name}, ещё идёт обсуждение. Осталось {self.get_literal_time(reminder)}"
+                f"{full_name}, ещё идёт обсуждение. Осталось {self.get_word_time(reminder)}"
             )
         if game.wait_status not in [Status.answer.value, Status.expired.value]:
             return
@@ -850,10 +853,29 @@ class BotManager:
             await self.spin_top_message(peer_id=message.peer_id)
 
     async def help_message_handler(self, message: Message):
-        text = (
-            "Используются следующие команды: /hello - запуск регистрации в игре; "
-            "/scores - очки по игрокам; /hello - вывод этой справки."
+        text = ("Приветствую вас в игре Что? Где? Когда? Играет команда знатоков "
+                f"(в составе {self.rabbitmq.config.players} человек) против ведущего. "
+                f"Игра ведётся до {self.rabbitmq.config.game.max_points} очков. "
+                f"На обдумывание и обсуждение вопросов даётся "
+                f"{self.get_word_time(self.rabbitmq.config.game.thinking_timer)}, "
+                f"после чего капитан должен выбрать игрока, отвечающего на вопрос. На это капитану даётся "
+                f"{self.get_word_time(self.rabbitmq.config.game.captain_timer)}. На ввод ответа у игрока есть "
+                f"{self.get_word_time(self.rabbitmq.config.game.answer_timer)}. Так же волчок может выбрать сектор блиц, "
+                f"предлагается ответить на 3 более простых вопроса, но время обсуждения и ответа в два раза меньше. "
+                f"Для регистрации в игре наберите '/hello'. Для просмотра счёта по игрокам '/scores'. Удачи в игре!"
+                )
+        await self.publish_message(
+            text=text, peer_id=message.peer_id
         )
+
+    async def scores_message_handler(self, message: Message):
+        players = await self.game.list_players_by_game()
+        if players is None or len(players) == 0:
+            text = "В базе данных пока нет игроков"
+        else:
+            text = "Счёт по всем игрокам по всем играм:"
+            for player in players:
+                text += f"{player.name} {player.last_name} - {player.scores[0].points};  "
         await self.publish_message(
             text=text, peer_id=message.peer_id
         )
@@ -919,7 +941,7 @@ class BotManager:
     async def start_blitz(self, game_id: int, peer_id: int):
         game = await self.game.get_game_by_id(id=game_id)
         text = 'Вам выпал блиц! Вам предстоит ответить на 3 вопроса, ' \
-               f"{self.get_literal_time(self.rabbitmq.config.game.thinking_timer // BLITZ_THINKING_FACTOR)}" \
+               f"{self.get_word_time(self.rabbitmq.config.game.thinking_timer // BLITZ_THINKING_FACTOR)}" \
                " обсуждения каждый. Капитан выбирает отвечающего на каждый вопрос."
         await self.publish_message(text=text, peer_id=peer_id)
         await asyncio.sleep(4)
@@ -950,7 +972,7 @@ class BotManager:
             )
 
     @staticmethod
-    def get_literal_time(t: int):
+    def get_word_time(t: int):
         if t <= 0:
             return "0 секунд"
         result = ""

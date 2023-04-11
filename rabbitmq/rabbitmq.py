@@ -5,10 +5,6 @@ import logging
 import aio_pika
 from aio_pika.pool import Pool
 from aio_pika import Message
-from aio_pika.exceptions import ConnectionClosed
-
-
-# from app.store.bot.manager import
 
 
 class Rabbitmq:

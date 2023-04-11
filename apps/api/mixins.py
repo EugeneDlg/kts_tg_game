@@ -16,7 +16,7 @@ class AuthRequiredMixin:
         delta = dt.timedelta(minutes=1000)
         if dt.datetime.now() - dt.datetime.fromtimestamp(session_time) > delta:
             raise HTTPUnauthorized
-        user = await self.request.app.store.admins.get_by_email(session_email)
+        user = await self.request.app.admins.get_by_email(session_email)
         if user is None:
             raise HTTPForbidden(text="User doesn't exist")
         return user

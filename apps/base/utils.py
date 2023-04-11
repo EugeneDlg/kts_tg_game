@@ -1,6 +1,6 @@
 import dataclasses
 
-from app.game.models import (
+from apps.game.models import (
     Answer,
     AnswerModel,
     Game,
@@ -23,9 +23,15 @@ models = {
 
 
 def to_dataclass(function):
+    """
+    Декоратор для прямого маппинга моделей SqlAlchemy в модели Dataclass непосредственно
+        по именам атрибутов
+    :param function:
+    :return:
+    """
     def to_dataclass_convert(model_instance, chain=[]):
         """
-        Метод для прямого маппинга моделей SqlAlchemy в модели Dataclass непосредственно
+        Сам метод маппинга моделей SqlAlchemy в модели Dataclass
         по именам атрибутов
         :param model_instance: Модель SqlAlchemy
         :param chain: стэк моделей при рекурсивных вызовах для избежания зацикленности

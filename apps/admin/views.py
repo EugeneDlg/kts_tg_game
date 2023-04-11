@@ -4,13 +4,13 @@ from aiohttp.web_exceptions import HTTPMethodNotAllowed
 from aiohttp_apispec import docs, request_schema, response_schema
 from aiohttp_session import new_session
 
-from app.admin.schemes import (
+from apps.admin.schemes import (
     AdminIdResponseSchema,
     AdminRequestSchema,
     AdminResponseSchema,
 )
-from app.web.app import View
-from app.web.utils import authenticate, check_auth, json_response
+from apps.api.app import View
+from apps.api.utils import authenticate, check_auth, json_response
 
 
 class AdminLoginView(View):
