@@ -18,6 +18,7 @@ class Command(enum.Enum):
     help = {"command": "/help"}
     hello = {"command": "/hello"}
     scores = {"command": "/scores"}
+    finish = {"command": "/finish"}
     start = {"command": "start",
              "label": "Начать игру"}
     register = {"command": "register",

@@ -302,6 +302,8 @@ class BotManager:
             await self.help_message_handler(message)
         elif text == Command.scores["command"]:
             await self.scores_message_handler(message)
+        elif text == Command.finish["command"]:
+            await self.finish_message_handler(message)
         else:
             await self.answer_message_handler(message)
 
@@ -466,9 +468,9 @@ class BotManager:
                 players=players,
                 new_players=new_players,
             )
+            rest_players = self.rabbitmq.config.game.players - 1
             text = (
                 f"{full_name}, Вы зарегистрированы. Ждем остальных участников. "
-                f"Ещё должно присоединиться if len(game.players) == self.rabbitmq.config.game.players: ###"
             )
             await self.publish_message(
                 text=text,
@@ -478,6 +480,11 @@ class BotManager:
                 event_data={"type": "show_snackbar"},
             )
             await asyncio.sleep(1)
+            text = (
+                f"{full_name}, Вы зарегистрированы. Ждем остальных участников. "
+                "Для начала игры не хватает "
+                f"ещё {self.get_word_players(rest_players)}"
+            )
             await self.publish_message(text=text, peer_id=event.peer_id)
         # if game has been already created, we add a player to it
         else:
@@ -514,7 +521,7 @@ class BotManager:
                     )
                 # refresh game instance after adding a new player
                 game = await self.game.get_game(
-                    chat_id=event.peer_id, status=Status.registered.value
+                    chat_id=event.peer_id, status=Status.registered
                 )
                 # if all players are registered for the game
                 if len(game.players) == self.rabbitmq.config.game.players:
@@ -541,10 +548,11 @@ class BotManager:
                         text=text, user_id=event.user_id, peer_id=event.peer_id
                     )
                 else:
+                    rest_players = self.rabbitmq.config.game.players - len(game.players)
                     await self.publish_message(
                         text=f"{full_name}, "
-                             "Вы зарегистрированы."
-                             " Ждем остальных участников.",
+                             "Вы зарегистрированы. "
+                             "Ждем остальных участников.",
                         user_id=event.user_id,
                         peer_id=event.peer_id,
                         event_id=event.event_id,
@@ -553,7 +561,8 @@ class BotManager:
                     await self.publish_message(
                         text=f"{full_name}, "
                              "Вы зарегистрированы."
-                             " Ждем остальных участников.",
+                             " Ждем остальных участников. Для начала игры не хватает "
+                             f"ещё {self.get_word_players(rest_players)}",
                         peer_id=event.peer_id,
                     )
 
@@ -873,25 +882,37 @@ class BotManager:
         if players is None or len(players) == 0:
             text = "В базе данных пока нет игроков"
         else:
-            text = "Счёт по всем игрокам по всем играм:"
+            text = "Счёт по всем игрокам по всем играм: "
             for player in players:
-                text += f"{player.name} {player.last_name} - {player.scores[0].points};  "
+                points = await self.game.get_total_score(
+                    player_id=player.id
+                )
+                text += f"{player.name} {player.last_name} - {points};  "
         await self.publish_message(
             text=text, peer_id=message.peer_id
         )
 
+    async def finish_message_handler(self, message: Message):
+        game = await self.game.get_game(
+            chat_id=message.peer_id, status=Status.active
+        )
+        if game is None:
+            game = await self.game.get_game(
+                chat_id=message.peer_id, status=Status.registered
+            )
+        if game is None:
+            text = "Игра для завершения не найдена"
+        else:
+            await self._finish_game_procedure(game_id=game.id)
+            text = "Игра завершена вручную"
+        await self.publish_message(
+            text=text, peer_id=message.peer_id
+        )
 
     async def finish_game(self, game_id: int, peer_id: int, winner: str):
         game = await self.game.get_game_by_id(id=game_id)
-        params = {"status": Status.finished.value}
-        await self.game.update_game(id=game_id, **params)
-        await self.game.unmark_questions_as_used(game_id=game_id)
-        scores = ""
-        for player in game.players:
-            points = await self.game.get_total_score(
-                player_id=player.id
-            )
-            scores += f"{player.name} {player.last_name} - {points}; "
+        await self._finish_game_procedure(game_id)
+        scores = await self.get_all_players_scores(game_id)
         scores_text = (
             f"Итоговый счёт {game.my_points}:{game.players_points}. "
             f" Счёт по игрокам: {scores}"
@@ -916,6 +937,21 @@ class BotManager:
             keyboard={"buttons": [{"command": Command.again["command"],
                                    "label": Command.again["label"]}]},
         )
+
+    async def _finish_game_procedure(self, game_id: int,):
+        params = {"status": Status.finished}
+        await self.game.update_game(id=game_id, **params)
+        await self.game.unmark_questions_as_used(game_id=game_id)
+
+    async def get_all_players_scores(self, game_id: int) -> str:
+        game = await self.game.get_game_by_id(id=game_id)
+        scores = ""
+        for player in game.players:
+            points = await self.game.get_total_score(
+                player_id=player.id
+            )
+            scores += f"{player.name} {player.last_name} - {points}; "
+        return scores
 
     @staticmethod
     async def choose_sector():
@@ -1001,6 +1037,12 @@ class BotManager:
             display_seconds = f"{seconds} {second_suff}"
             result += " " + display_seconds
         return result
+
+    @staticmethod
+    def get_word_players(num: int) -> str:
+        if num == 1:
+            return "одного участника"
+        return f"{num} участников"
 
 
 class GameException(Exception):
