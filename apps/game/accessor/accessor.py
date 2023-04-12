@@ -6,19 +6,19 @@ from sqlalchemy.orm import joinedload
 
 from apps.base.utils import to_dataclass
 from apps.game.models import (
+    Answer,
+    AnswerModel,
     Game,
     GameCaptainModel,
     GameModel,
-    GameScoreModel,
     GameScore,
+    GameScoreModel,
     GameSpeakerModel,
     Player,
     PlayerModel,
     Question,
     QuestionModel,
     UsedQuestionsModel,
-    AnswerModel,
-    Answer,
 )
 
 
@@ -28,17 +28,15 @@ class GameAccessor:
 
     @to_dataclass
     async def create_game(
-            self,
-            chat_id: int,
-            created_at: datetime,
-            players: list[Player],
-            new_players: list[dict],
+        self,
+        chat_id: int,
+        created_at: datetime,
+        players: list[Player],
+        new_players: list[dict],
     ) -> Game:
         db_players = []
         for player in players:
-            db_players.append(
-                await self._get_player_as_orm_model(player.vk_id)
-            )
+            db_players.append(await self._get_player_as_orm_model(player.vk_id))
         new_players_models = [
             PlayerModel(
                 name=player["name"],
@@ -55,9 +53,7 @@ class GameAccessor:
             session.add(game)
         return game
 
-    async def get_game(
-            self, chat_id: int, status: str
-    ) -> Game:
+    async def get_game(self, chat_id: int, status: str) -> Game:
         game = await self._get_game_as_orm_tuple(chat_id=chat_id, status=status)
         return self.games_from_sql(game, many=False)
 
@@ -67,17 +63,27 @@ class GameAccessor:
             return None
         return game[0][0]
 
-    async def _get_game_as_orm_tuple(self, chat_id: int, status: str) -> tuple[GameModel]:
+    async def _get_game_as_orm_tuple(
+        self, chat_id: int, status: str
+    ) -> tuple[GameModel]:
         async with self.database.session.begin() as session:
-            game = (
-                await session.execute(
-                    select(GameModel, PlayerModel, GameScoreModel)
-                    .where(and_(
+            game = await session.execute(
+                select(GameModel, PlayerModel, GameScoreModel)
+                .where(
+                    and_(
                         GameModel.chat_id == chat_id,
                         GameModel.status == status,
-                    ))
-                    .join(GameModel, GameModel.id == GameScoreModel.game_id, isouter=True)
-                    .join(PlayerModel, PlayerModel.id == GameScoreModel.player_id, isouter=True)
+                    )
+                )
+                .join(
+                    GameModel,
+                    GameModel.id == GameScoreModel.game_id,
+                    isouter=True,
+                )
+                .join(
+                    PlayerModel,
+                    PlayerModel.id == GameScoreModel.player_id,
+                    isouter=True,
                 )
             )
         return game.all()
@@ -90,12 +96,13 @@ class GameAccessor:
         for row in game_all:
             game_instance = row[0]
             player_instance = row[1]
-            player = Player(id=player_instance.id,
-                            vk_id=player_instance.vk_id,
-                            name=player_instance.name,
-                            last_name=player_instance.last_name,
-                            scores=[GameScore(points=row[2].points, games=None)]
-                            )
+            player = Player(
+                id=player_instance.id,
+                vk_id=player_instance.vk_id,
+                name=player_instance.name,
+                last_name=player_instance.last_name,
+                scores=[GameScore(points=row[2].points, games=None)],
+            )
             games[game_instance].append(player)
         game_list = []
         for game_instance, players_instance in games.items():
@@ -113,7 +120,7 @@ class GameAccessor:
                 blitz_round=game_instance.blitz_round,
                 players=players_instance,
                 speaker=None,
-                captain=None
+                captain=None,
             )
             game_list.append(game)
         return game_list if many else game_list[0]
@@ -142,8 +149,16 @@ class GameAccessor:
                 await session.execute(
                     select(GameModel, PlayerModel, GameScoreModel)
                     .where(GameModel.id == id)
-                    .join(GameModel, GameModel.id == GameScoreModel.game_id, isouter=True)
-                    .join(PlayerModel, PlayerModel.id == GameScoreModel.player_id, isouter=True)
+                    .join(
+                        GameModel,
+                        GameModel.id == GameScoreModel.game_id,
+                        isouter=True,
+                    )
+                    .join(
+                        PlayerModel,
+                        PlayerModel.id == GameScoreModel.player_id,
+                        isouter=True,
+                    )
                 )
             ).all()
         return game
@@ -169,7 +184,9 @@ class GameAccessor:
             else game.players_points
         )
         game.round = round_ if round_ is not None else game.round
-        game.blitz_round = blitz_round if blitz_round is not None else game.blitz_round
+        game.blitz_round = (
+            blitz_round if blitz_round is not None else game.blitz_round
+        )
         game.wait_time = wait_time if wait_time is not None else game.wait_time
         game.current_question_id = (
             current_question_id
@@ -206,8 +223,16 @@ class GameAccessor:
                 games_all = (
                     await session.execute(
                         select(GameModel, PlayerModel, GameScoreModel)
-                        .join(GameModel, GameModel.id == GameScoreModel.game_id, isouter=True)
-                        .join(PlayerModel, PlayerModel.id == GameScoreModel.player_id, isouter=True)
+                        .join(
+                            GameModel,
+                            GameModel.id == GameScoreModel.game_id,
+                            isouter=True,
+                        )
+                        .join(
+                            PlayerModel,
+                            PlayerModel.id == GameScoreModel.player_id,
+                            isouter=True,
+                        )
                     )
                 ).all()
             else:
@@ -215,21 +240,27 @@ class GameAccessor:
                     await session.execute(
                         select(GameModel, PlayerModel, GameScoreModel)
                         .where(GameModel.status == status)
-                        .join(GameModel, GameModel.id == GameScoreModel.game_id, isouter=True)
-                        .join(PlayerModel, PlayerModel.id == GameScoreModel.player_id, isouter=True)
+                        .join(
+                            GameModel,
+                            GameModel.id == GameScoreModel.game_id,
+                            isouter=True,
+                        )
+                        .join(
+                            PlayerModel,
+                            PlayerModel.id == GameScoreModel.player_id,
+                            isouter=True,
+                        )
                     )
                 ).all()
         return self.games_from_sql(games_all, many=True)
 
     @to_dataclass
     async def create_player(
-            self, vk_id: int, name: str, last_name: str, games: list[Game]
+        self, vk_id: int, name: str, last_name: str, games: list[Game]
     ) -> Player:
         db_games = []
         for game in games:
-            db_games.append(
-                await self._get_game_by_id_as_orm(game.id)
-            )
+            db_games.append(await self._get_game_by_id_as_orm(game.id))
         async with self.database.session.begin() as session:
             player = PlayerModel(
                 vk_id=vk_id, name=name, last_name=last_name, games=db_games
@@ -248,13 +279,14 @@ class GameAccessor:
         async with self.database.session.begin() as session:
             player = (
                 await session.execute(
-                    select(PlayerModel)
-                    .where(PlayerModel.vk_id == vk_id)
+                    select(PlayerModel).where(PlayerModel.vk_id == vk_id)
                 )
             ).scalar()
         return player
 
-    async def _get_player_with_scores_by_vk_id_as_orm(self, vk_id: int) -> PlayerModel:
+    async def _get_player_with_scores_by_vk_id_as_orm(
+        self, vk_id: int
+    ) -> PlayerModel:
         async with self.database.session.begin() as session:
             player = (
                 await session.execute(
@@ -274,7 +306,7 @@ class GameAccessor:
         return game
 
     async def _get_player_with_scores_by_names_as_orm(
-            self, name: str, last_name: str
+        self, name: str, last_name: str
     ) -> PlayerModel:
         async with self.database.session.begin() as session:
             player = (
@@ -293,8 +325,12 @@ class GameAccessor:
         return player
 
     @to_dataclass
-    async def get_player_with_scores_by_names_as_orm(self, name: str, last_name: str) -> Player:
-        player = await self._get_player_with_scores_by_names_as_orm(name=name, last_name=last_name)
+    async def get_player_with_scores_by_names_as_orm(
+        self, name: str, last_name: str
+    ) -> Player:
+        player = await self._get_player_with_scores_by_names_as_orm(
+            name=name, last_name=last_name
+        )
         return player
 
     async def delete_player(self, vk_id: int) -> None:
@@ -305,7 +341,8 @@ class GameAccessor:
 
     @to_dataclass
     async def list_players_by_game(
-            self, game_id: int = None,
+        self,
+        game_id: int = None,
     ) -> list[Player]:
         async with self.database.session.begin() as session:
             if game_id is None:
@@ -352,9 +389,11 @@ class GameAccessor:
         return score
 
     async def update_player_score(
-            self, player_id: int, game_id: int, points: int = None
+        self, player_id: int, game_id: int, points: int = None
     ):
-        score = await self._get_score_as_orm(player_id=player_id, game_id=game_id)
+        score = await self._get_score_as_orm(
+            player_id=player_id, game_id=game_id
+        )
         points_ = score.points
         score.points = points_ + points if points is not None else points_ + 1
         async with self.database.session.begin() as session:
@@ -438,7 +477,7 @@ class GameAccessor:
         return game
 
     async def link_player_to_game(
-            self, player_id: int, game_id: int
+        self, player_id: int, game_id: int
     ) -> GameScoreModel:
         """
         Link an already created game with an already created player. This method is used in Bot Manager,
@@ -453,11 +492,15 @@ class GameAccessor:
         return game_score
 
     @to_dataclass
-    async def create_question(self, text: str, blitz: bool, answer: dict) -> Question:
+    async def create_question(
+        self, text: str, blitz: bool, answer: dict
+    ) -> Question:
         answer_model = AnswerModel(text=answer["text"].strip().lower())
         text = text.strip()
         async with self.database.session.begin() as session:
-            question = QuestionModel(text=text, blitz=blitz, answer=[answer_model])
+            question = QuestionModel(
+                text=text, blitz=blitz, answer=[answer_model]
+            )
             session.add(question)
         return question
 
@@ -478,8 +521,12 @@ class GameAccessor:
                         UsedQuestionsModel.question_id == QuestionModel.id,
                         isouter=True,
                     )
-                    .filter(and_(UsedQuestionsModel.question_id == None,
-                                 QuestionModel.blitz == blitz))  # type: ignore # noqa: E711
+                    .filter(
+                        and_(
+                            UsedQuestionsModel.question_id == None,
+                            QuestionModel.blitz == blitz,
+                        )
+                    )  # type: ignore # noqa: E711
                 )
             ).scalars()
 
@@ -530,7 +577,9 @@ class GameAccessor:
             )
         return answers
 
-    async def mark_question_as_used(self, question_id: str, game_id: int) -> UsedQuestionsModel:
+    async def mark_question_as_used(
+        self, question_id: str, game_id: int
+    ) -> UsedQuestionsModel:
         async with self.database.session.begin() as session:
             link = UsedQuestionsModel(question_id=question_id, game_id=game_id)
             session.add(link)

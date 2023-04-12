@@ -1,16 +1,17 @@
 import asyncio
 import json
-from typing import Optional
 import logging
+from typing import Optional
+
 import aio_pika
-from aio_pika.pool import Pool
 from aio_pika import Message
+from aio_pika.pool import Pool
 
 
 class Rabbitmq:
     def __init__(self, input_queue, output_queue):
-        self.connection_pool: Optional[Pool] = None
-        self.channel_pool: Optional[Pool] = None
+        self.connection_pool: Pool | None = None
+        self.channel_pool: Pool | None = None
         self.input_queue = input_queue
         self.output_queue = output_queue
         self.on_startup = []
@@ -25,7 +26,9 @@ class Rabbitmq:
             if self.input_queue is not None:
                 await channel.declare_queue(self.input_queue, auto_delete=False)
             if self.output_queue is not None:
-                await channel.declare_queue(self.output_queue, auto_delete=False)
+                await channel.declare_queue(
+                    self.output_queue, auto_delete=False
+                )
 
     async def get_connection(self):
         loop = asyncio.get_event_loop()
@@ -33,7 +36,7 @@ class Rabbitmq:
             host=self.config.rabbitmq.host,
             user=self.config.rabbitmq.user,
             password=self.config.rabbitmq.password,
-            loop=loop
+            loop=loop,
         )
         return connection
 
@@ -65,8 +68,7 @@ class Rabbitmq:
         async with self.channel_pool.acquire() as channel:
             await channel.set_qos(10)
             queue = await channel.declare_queue(
-                self.input_queue,
-                auto_delete=False
+                self.input_queue, auto_delete=False
             )
             await queue.consume(on_message)
 

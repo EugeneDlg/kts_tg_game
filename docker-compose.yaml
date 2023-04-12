@@ -4,9 +4,10 @@ services:
     container_name: "api_app"
     build:
       context: .
+      dockerfile: ./Dockerfile_api
     env_file:
       - .env
-    entrypoint: sh -c 'python -m alembic upgrade head && python main.py'
+    entrypoint: sh -c 'python -m alembic upgrade head && python main_api.py'
     networks:
       - www_network
     ports:
@@ -18,7 +19,7 @@ services:
     container_name: "poller_app"
     build:
       context: .
-      dockerfile: ./Dockerfile
+      dockerfile: ./Dockerfile_poller
     entrypoint: sh -c 'python main_poller.py'
     env_file:
       - .env
@@ -31,7 +32,7 @@ services:
     container_name: "bot_app"
     build:
       context: .
-      dockerfile: ./Dockerfile
+      dockerfile: ./Dockerfile_bot
     entrypoint: sh -c 'python main_bot.py'
     env_file:
       - .env
@@ -46,7 +47,7 @@ services:
     container_name: "sender_app"
     build:
       context: .
-      dockerfile: ./Dockerfile
+      dockerfile: ./Dockerfile_sender
     entrypoint: sh -c 'python main_sender.py'
     env_file:
       - .env
@@ -81,7 +82,7 @@ services:
       - .env
     environment:
       - POSTGRES_USER=${DB_USER:-postgres}
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASS:-postgres}
       - POSTGRES_DB=${DB_NAME:-postgres}
     expose:
       - "5432"

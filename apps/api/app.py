@@ -5,15 +5,14 @@ from aiohttp_apispec import setup_aiohttp_apispec
 from aiohttp_session import setup as setup_aiohttp_session
 from aiohttp_session.cookie_storage import EncryptedCookieStorage
 
+from apps.admin.accessor.accessor import AdminAccessor
 from apps.admin.models import Admin
-from db.database import Database
-from config.config import Config, setup_config
 from apps.api.logger import setup_logging
 from apps.api.middlewares import setup_middlewares
 from apps.api.routes import setup_routes
-
-from apps.admin.accessor.accessor import AdminAccessor
 from apps.game.accessor.accessor import GameAccessor
+from config.config import Config, setup_config
+from db.database import Database
 
 
 class Application(AiohttpApplication):

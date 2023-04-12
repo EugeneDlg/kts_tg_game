@@ -3,16 +3,16 @@ import uuid
 from dataclasses import dataclass
 
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     ForeignKey,
     Integer,
     String,
-    Boolean,
     UniqueConstraint,
 )
-from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 
 from db.sqlalchemy_base import db
 

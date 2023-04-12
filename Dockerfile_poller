@@ -10,7 +10,10 @@ ENV PYTHONUNBUFFERED 1
 COPY ./requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt --no-cache-dir
 
-COPY ./config .
-COPY ./apps/vk_api .
-COPY ./apps/base .
-COPY ./rabbitmq .
+COPY ./config ./config
+COPY ./apps/vk_api ./apps/vk_api
+COPY ./apps/base ./apps/base
+COPY ./rabbitmq ./rabbitmq
+COPY ./main_poller.py .
+COPY ./.env .
+COPY ./config.yml .

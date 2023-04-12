@@ -9,10 +9,10 @@ from aiohttp.test_utils import TestClient, loop_context
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.admin.models import Admin, AdminModel
-from apps.game.models import Game, GameModel, PlayerModel
-from db.database import Database
 from apps.api.app import setup_app
+from apps.game.models import Game, GameModel, PlayerModel
 from config.config import Config
+from db.database import Database
 
 
 @pytest.fixture(scope="session")

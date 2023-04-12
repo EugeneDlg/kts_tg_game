@@ -84,7 +84,9 @@ class VkApiAccessor(BaseAccessor):
         if message.get("vk_user_request") is not None:
             params["user_ids"] = message.get("vk_user_request")
             url = self._build_query(
-                host="https://api.vk.com/method/", method="users.get", params=params
+                host="https://api.vk.com/method/",
+                method="users.get",
+                params=params,
             )
         else:
             if message.get("event_data") is None:
@@ -103,7 +105,10 @@ class VkApiAccessor(BaseAccessor):
                 params["peer_id"] = message.get("peer_id")
                 params["user_id"] = message.get("user_id")
                 params["event_data"] = json.dumps(
-                    {"text": message.get("text"), "type": message["event_data"]["type"]}
+                    {
+                        "text": message.get("text"),
+                        "type": message["event_data"]["type"],
+                    }
                 )
                 url = self._build_query(
                     host="https://api.vk.com/method/",
@@ -120,11 +125,11 @@ class VkApiAccessor(BaseAccessor):
         if message.get("vk_user_request") is not None:
             reply = {
                 "type": "vk_user_request",
-                "vk_user_request": resp_json['response'][0]['id'],
-                "first_name": resp_json['response'][0]['first_name'],
-                "last_name": resp_json['response'][0]['last_name'],
+                "vk_user_request": resp_json["response"][0]["id"],
+                "first_name": resp_json["response"][0]["first_name"],
+                "last_name": resp_json["response"][0]["last_name"],
                 "peer_id": message.get("peer_id"),
-                "event_id": message.get("event_id")
+                "event_id": message.get("event_id"),
             }
             await self.app.publish(reply)
         self.logger.info(f"Reply: {str(resp_json)}")

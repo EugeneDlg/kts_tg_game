@@ -1,13 +1,13 @@
-import os
-import functools
 import asyncio
+import functools
+import os
 import signal
 
-from config.config import setup_config
-from rabbitmq.rabbitmq import Rabbitmq
 from apps.bot.manager import BotManager
 from apps.game.accessor.accessor import GameAccessor
+from config.config import setup_config
 from db.database import Database
+from rabbitmq.rabbitmq import Rabbitmq
 
 
 async def main():

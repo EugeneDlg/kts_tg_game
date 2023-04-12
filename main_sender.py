@@ -1,11 +1,11 @@
-import os
 import asyncio
 import functools
+import os
 import signal
 
+from apps.vk_api.accessor.accessor import VkApiAccessor
 from config.config import setup_config
 from rabbitmq.rabbitmq import Rabbitmq
-from apps.vk_api.accessor.accessor import VkApiAccessor
 
 
 async def main():

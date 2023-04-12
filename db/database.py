@@ -6,7 +6,6 @@ from sqlalchemy.orm import sessionmaker
 
 from db.sqlalchemy_base import db
 
-
 TABLES = ["games", "players", "used_questions"]
 TABLES_SEQ = ["games", "players"]
 

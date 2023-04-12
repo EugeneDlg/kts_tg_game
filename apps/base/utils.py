@@ -29,6 +29,7 @@ def to_dataclass(function):
     :param function:
     :return:
     """
+
     def to_dataclass_convert(model_instance, chain=[]):
         """
         Сам метод маппинга моделей SqlAlchemy в модели Dataclass
@@ -68,10 +69,7 @@ def to_dataclass(function):
     async def wrapper(*args, **kwargs):
         orm_model = await function(*args, **kwargs)
         if isinstance(orm_model, list):
-            return [
-                to_dataclass_convert(model) for model in orm_model
-            ]
+            return [to_dataclass_convert(model) for model in orm_model]
         return to_dataclass_convert(orm_model)
+
     return wrapper
-
-

@@ -5,15 +5,17 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
-
-
 COPY ./requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt --no-cache-dir
 
 COPY ./config ./config
-COPY ./rabbitmq ./rabbitmq
-COPY ./apps/vk_api ./apps/vk_api
+COPY ./db ./db
 COPY ./apps/base ./apps/base
-COPY ./main_sender.py .
+COPY ./apps/admin ./apps/admin
+COPY ./apps/game ./apps/game
+COPY ./apps/api ./apps/api
+COPY ./migrations ./migrations
+COPY ./main_api.py .
 COPY ./.env .
 COPY ./config.yml .
+COPY ./alembic.ini .

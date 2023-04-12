@@ -19,15 +19,11 @@ class Command(enum.Enum):
     hello = {"command": "/hello"}
     scores = {"command": "/scores"}
     finish = {"command": "/finish"}
-    start = {"command": "start",
-             "label": "Начать игру"}
-    register = {"command": "register",
-                "label": "Присоединиться к игре"}
-    again = {"command": "again",
-             "label": "Играть ещё"}
+    start = {"command": "start", "label": "Начать игру"}
+    register = {"command": "register", "label": "Присоединиться к игре"}
+    again = {"command": "again", "label": "Играть ещё"}
     speaker = {"command": "speaker"}
-    top = {"command": "top",
-           "label": "Крутить волчок"}
+    top = {"command": "top", "label": "Крутить волчок"}
 
     def __str__(self):
         return str(self.value)

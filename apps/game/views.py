@@ -8,6 +8,8 @@ from aiohttp.web_exceptions import (
 )
 from aiohttp_apispec import docs, request_schema, response_schema
 
+from apps.api.app import View
+from apps.api.utils import check_auth, json_response
 from apps.game.schemes import (
     AnswerListDumpResponseSchema,
     AnswerListDumpSchemaBeforeResponse,
@@ -17,7 +19,6 @@ from apps.game.schemes import (
     GameSchema,
     GameSchemaBeforeResponse,
     GameSchemaForCreateBeforeResponse,
-    PlayerVkIdSchema,
     PlayerListResponseSchema,
     PlayerListSchemaBeforeResponse,
     PlayerResponseSchema,
@@ -25,6 +26,7 @@ from apps.game.schemes import (
     PlayerSchemaBeforeResponse,
     PlayerScoreResponseSchema,
     PlayerScoreSchemaBeforeResponse,
+    PlayerVkIdSchema,
     QuestionIdSchema,
     QuestionListDumpResponseSchema,
     QuestionListDumpSchemaBeforeResponse,
@@ -34,8 +36,6 @@ from apps.game.schemes import (
     QuestionSchema,
     QuestionSchemaBeforeResponse,
 )
-from apps.api.app import View
-from apps.api.utils import check_auth, json_response
 
 
 class GameAddView(View):
@@ -110,9 +110,7 @@ class GameGetView(View):
         status = query.get("status")
         if chat_id is None or not chat_id.isnumeric():
             raise HTTPBadRequest(text="Invalid chat_id")
-        game = await self.app.game.get_game(
-            chat_id=int(chat_id), status=status
-        )
+        game = await self.app.game.get_game(chat_id=int(chat_id), status=status)
         if game is None:
             raise HTTPNotFound(text="Game not found")
         return json_response(data=GameSchemaBeforeResponse().dump(game))
@@ -126,7 +124,7 @@ class GameDeleteView(View):
         tags=["game"],
         summary="Delete a game with a certain ID",
         description="Delete a game with a certain ID. "
-                    "For administrative purpose only.",
+        "For administrative purpose only.",
     )
     @request_schema(GameSchema)
     @response_schema(GameResponseSchema, 200)
@@ -211,7 +209,9 @@ class PlayerGetView(View):
         vk_id = query.get("vk_id")
         if vk_id is None or not vk_id.isnumeric():
             raise HTTPBadRequest(text="Invalid user vk_id")
-        player = await self.app.game.get_player_with_scores_by_vk_id(vk_id=int(vk_id))
+        player = await self.app.game.get_player_with_scores_by_vk_id(
+            vk_id=int(vk_id)
+        )
         if player is None:
             raise HTTPNotFound(text="Player not found")
         return json_response(
@@ -227,7 +227,7 @@ class PlayerDeleteView(View):
         tags=["player"],
         summary="Delete a player with a certain VK ID",
         description="Delete a player with a certain VK ID. "
-                    "For administrative purpose only.",
+        "For administrative purpose only.",
     )
     @request_schema(PlayerVkIdSchema)
     @check_auth
@@ -385,9 +385,7 @@ class QuestionListDumpView(View):
         questions = await self.app.game.list_questions()
         data = {"questions": questions}
         dd = QuestionListDumpSchemaBeforeResponse().dump(data)
-        return json_response(
-            data=dd
-        )
+        return json_response(data=dd)
 
     async def post(self):
         raise HTTPMethodNotAllowed("post", ["get"], text="not implemented")

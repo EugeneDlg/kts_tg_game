@@ -10,8 +10,13 @@ ENV PYTHONUNBUFFERED 1
 COPY ./requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt --no-cache-dir
 
-COPY ./config .
-COPY ./rabbitmq .
-COPY ./db .
-COPY ./apps/game .
-COPY ./apps/bot .
+COPY ./config ./config
+COPY ./rabbitmq ./rabbitmq
+COPY ./db ./db
+COPY ./apps/admin ./apps/admin
+COPY ./apps/game ./apps/game
+COPY ./apps/base ./apps/base
+COPY ./apps/bot ./apps/bot
+COPY ./main_bot.py .
+COPY ./.env .
+COPY ./config.yml .

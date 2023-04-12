@@ -1,9 +1,8 @@
-from typing import Optional
-import logging
-from logging import getLogger
-
 import asyncio
-from asyncio import Task, Future
+import logging
+from asyncio import Future, Task
+from logging import getLogger
+from typing import Optional
 
 
 class Poller:
@@ -11,7 +10,7 @@ class Poller:
         self.rabbitmq = vk_accessor.app
         self.vk_accessor = vk_accessor
         self.is_running = False
-        self.poll_task: Optional[Task] = None
+        self.poll_task: Task | None = None
         self.logger = getLogger("accessor")
         logging.basicConfig(level=logging.INFO)
 
@@ -22,9 +21,7 @@ class Poller:
 
     def _done_callback(self, future: Future):
         if future.exception():
-            self.logger.exception(
-                'polling failed', exc_info=future.exception()
-            )
+            self.logger.exception("polling failed", exc_info=future.exception())
 
     async def stop(self):
         self.is_running = False

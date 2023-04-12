@@ -1,5 +1,5 @@
-import typing
 import logging
+import typing
 from logging import getLogger
 
 if typing.TYPE_CHECKING:

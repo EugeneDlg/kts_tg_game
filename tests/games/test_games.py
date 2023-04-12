@@ -8,7 +8,6 @@ from sqlalchemy.future import select
 from apps.game.models import Game, GameModel, Player
 from tests.utils import check_empty_table_exists
 
-
 if typing.TYPE_CHECKING:
     from apps.api.app import Application
 
