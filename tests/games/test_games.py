@@ -1,19 +1,22 @@
 import datetime
+import typing
 
 import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.future import select
 
-from app.game.models import Game, GameModel, Player
-from app.store import Store
+from apps.game.models import Game, GameModel, Player
 from tests.utils import check_empty_table_exists
+
+if typing.TYPE_CHECKING:
+    from apps.api.app import Application
 
 
 class TestGamesStore:
     async def test_table_exists(self, cli):
         await check_empty_table_exists(cli, "games")
 
-    async def test_create_game(self, cli, store: Store):
+    async def test_create_game(self, cli, app: "Application"):
         chat_id = 111
         created_at = datetime.datetime.now()
         player_id = 1
@@ -29,7 +32,7 @@ class TestGamesStore:
                 scores=None,
             )
         ]
-        game = await store.game.create_game(
+        game = await app.game.create_game(
             chat_id=chat_id,
             created_at=created_at,
             players=[],
@@ -46,7 +49,7 @@ class TestGamesStore:
         assert game.chat_id == chat_id
 
     async def test_create_game_unique_id_constraint(
-        self, cli, store: Store, game_1: Game
+        self, cli, app: "Application", game_1: Game
     ):
         chat_id = 111
         created_at = datetime.datetime.now()
@@ -64,7 +67,7 @@ class TestGamesStore:
             )
         ]
         with pytest.raises(IntegrityError) as exc_info:
-            await store.game.create_game(
+            await app.game.create_game(
                 chat_id=chat_id,
                 created_at=created_at,
                 players=[],
