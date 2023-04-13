@@ -135,27 +135,27 @@ class GameModel(db):
         "QuestionModel", back_populates="current_game"
     )
 
-    def to_dc(self):
-        players = []
-        for score in self.scores:
-            player = score.players
-            p = score.points
-            s = GameScore(points=p, games=None)
-            players.append(
-                Player(
-                    id=player.id,
-                    vk_id=player.vk_id,
-                    name=player.name,
-                    last_name=player.last_name,
-                    scores=[s],
-                )
-            )
-        return Game(
-            id=self.id,
-            created_at=self.created_at,
-            chat_id=self.chat_id,
-            players=players,
-        )
+    # def to_dc(self):
+    #     players = []
+    #     for score in self.scores:
+    #         player = score.players
+    #         p = score.points
+    #         s = GameScore(points=p, games=None)
+    #         players.append(
+    #             Player(
+    #                 id=player.id,
+    #                 vk_id=player.vk_id,
+    #                 name=player.name,
+    #                 last_name=player.last_name,
+    #                 scores=[s],
+    #             )
+    #         )
+    #     return Game(
+    #         id=self.id,
+    #         created_at=self.created_at,
+    #         chat_id=self.chat_id,
+    #         players=players,
+    #     )
 
 
 class GameScoreModel(db):

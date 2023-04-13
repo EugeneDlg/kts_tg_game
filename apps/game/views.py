@@ -17,6 +17,7 @@ from apps.game.schemes import (
     GameListSchemaBeforeResponse,
     GameResponseSchema,
     GameSchema,
+    GameIdSchema,
     GameSchemaBeforeResponse,
     GameSchemaForCreateBeforeResponse,
     PlayerListResponseSchema,
@@ -32,6 +33,7 @@ from apps.game.schemes import (
     QuestionListDumpSchemaBeforeResponse,
     QuestionListResponseSchema,
     QuestionListSchemaBeforeResponse,
+    GameListStatusSchema,
     QuestionResponseScheme,
     QuestionSchema,
     QuestionSchemaBeforeResponse,
@@ -42,7 +44,7 @@ class GameAddView(View):
     @docs(
         tags=["game"],
         summary="Adding a new game",
-        description="Adding a new game",
+        description="This handler is for adding a game with players. For administrative purpose only",
     )
     @request_schema(GameSchema)
     @response_schema(GameResponseSchema, 200)
@@ -54,6 +56,9 @@ class GameAddView(View):
         created_at = dt.datetime.now()
         db_players = []
         new_players = []
+        if chat_id is None or not chat_id.isnumeric():
+            raise HTTPBadRequest(text="Invalid chat_id")
+        chat_id = int(chat_id)
         game = await self.app.game.get_game(chat_id=chat_id)
         if game is not None:
             raise HTTPConflict(text="Game with this ID already exists")
@@ -99,7 +104,9 @@ class GameGetView(View):
     @docs(
         tags=["game"],
         summary="Get a list of games with a certain chat ID and a status",
-        description="Get a list of games with a certain chat ID and a status",
+        description="Get a list of games with a certain chat ID and a status. "
+                    "For a game with status 'Active' or 'Registered' the result will contain "
+                    "an array with only one game. For status 'Finished' the array might contain several games",
     )
     @request_schema(GameSchema)
     @response_schema(GameResponseSchema, 200)
@@ -110,7 +117,8 @@ class GameGetView(View):
         status = query.get("status")
         if chat_id is None or not chat_id.isnumeric():
             raise HTTPBadRequest(text="Invalid chat_id")
-        game = await self.app.game.get_game(chat_id=int(chat_id), status=status)
+        chat_id = int(chat_id)
+        game = await self.app.game.get_game(chat_id=chat_id, status=status)
         if game is None:
             raise HTTPNotFound(text="Game not found")
         return json_response(data=GameSchemaBeforeResponse().dump(game))
@@ -126,7 +134,7 @@ class GameDeleteView(View):
         description="Delete a game with a certain ID. "
         "For administrative purpose only.",
     )
-    @request_schema(GameSchema)
+    @request_schema(GameIdSchema)
     @response_schema(GameResponseSchema, 200)
     @check_auth
     async def delete(self) -> None:
@@ -134,7 +142,8 @@ class GameDeleteView(View):
         id_ = query.get("id")
         if id_ is None or not id_.isnumeric():
             raise HTTPBadRequest(text="Invalid Game Id")
-        game = await self.app.game.get_game_by_id(id=int(id_))
+        id_ = int(id_)
+        game = await self.app.game.get_game_by_id(id=id_)
         if game is None:
             raise HTTPNotFound(text="Game not found")
         await self.app.game.delete_game(id=id_)
@@ -148,11 +157,17 @@ class GameDeleteView(View):
 
 
 class GameListView(View):
-    @docs(tags=["game"], summary="List all games", description="List all games")
+    @docs(tags=["game"], summary="List all games",
+          description="List all games with a certain status")
+    @request_schema(GameListStatusSchema)
     @response_schema(GameListResponseSchema, 200)
     @check_auth
     async def get(self):
-        games = await self.app.game.list_games()
+        query = self.request.rel_url.query
+        status = query.get("status")
+        if status is None:
+            raise HTTPBadRequest(text="Invalid Game status")
+        games = await self.app.game.list_games(status=status)
         data = {"games": games}
         return json_response(data=GameListSchemaBeforeResponse().dump(data))
 
@@ -164,7 +179,7 @@ class PlayerAddView(View):
     @docs(
         tags=["player"],
         summary="Adding a new player",
-        description="Adding a new player",
+        description="Adding a new player to an existing game. Is used for administrative purpose only",
     )
     @request_schema(PlayerSchema)
     @response_schema(PlayerResponseSchema, 200)
@@ -176,10 +191,13 @@ class PlayerAddView(View):
         last_name = data["last_name"]
         games = data["games"]
         game_models = []
+        if vk_id is None or not vk_id.isnumeric():
+            raise HTTPBadRequest(text="Invalid user vk_id")
+        vk_id = int(vk_id)
         for game in games:
             chat_id = game["chat_id"]
             game_model = await self.app.game.get_game(
-                chat_id=chat_id, status="registered"
+                chat_id=int(chat_id), status="registered"
             )
             if game_model is None:
                 raise HTTPBadRequest(
@@ -209,8 +227,9 @@ class PlayerGetView(View):
         vk_id = query.get("vk_id")
         if vk_id is None or not vk_id.isnumeric():
             raise HTTPBadRequest(text="Invalid user vk_id")
+        vk_id = int(vk_id)
         player = await self.app.game.get_player_with_scores_by_vk_id(
-            vk_id=int(vk_id)
+            vk_id=vk_id
         )
         if player is None:
             raise HTTPNotFound(text="Player not found")
@@ -236,6 +255,7 @@ class PlayerDeleteView(View):
         vk_id = query.get("vk_id")
         if vk_id is None or not vk_id.isnumeric():
             raise HTTPBadRequest(text="Invalid User VK Id")
+        vk_id = int(vk_id)
         game = await self.app.game.get_player(vk_id)
         if game is None:
             raise HTTPNotFound(text="Player not found")
@@ -255,13 +275,15 @@ class PlayerListView(View):
         summary="List all players of the particular game",
         description="List all players of the particular game",
     )
+    @request_schema(GameIdSchema)
     @response_schema(PlayerListResponseSchema, 200)
     @check_auth
     async def get(self):
         query = self.request.rel_url.query
         game_id = query.get("game_id")
-        if game_id is not None:
-            game_id = int(game_id)
+        if game_id is None or not game_id.isnumeric():
+                raise HTTPBadRequest(text="Invalid Game id")
+        game_id = int(game_id)
         players = await self.app.game.list_players_by_game(game_id=game_id)
         data = {"players": players}
         return json_response(data=PlayerListSchemaBeforeResponse().dump(data))
@@ -274,7 +296,7 @@ class LatestGameGetView(View):
     @docs(
         tags=["game"],
         summary="Get a latest game",
-        description="Get a latest game",
+        description="Get a latest game with any status",
     )
     @response_schema(GameResponseSchema, 200)
     @check_auth

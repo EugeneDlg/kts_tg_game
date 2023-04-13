@@ -5,6 +5,7 @@ import random
 import re
 import time
 import typing
+import logging
 from logging import getLogger
 
 from apps.bot.dataclassess import (
@@ -31,6 +32,7 @@ class BotManager:
         self.rabbitmq = rabbitmq
         self.game = game
         self.logger = getLogger("bot_manager")
+        logging.basicConfig(level=logging.INFO)
         self.round_task = {}
         self.top_task = {}
         self.captain_task = {}
@@ -90,22 +92,6 @@ class BotManager:
             return
         user_id = update.object.user_id
         peer_id = update.object.peer_id
-        questions_ids = await self.game.get_question_ids()
-        questions_blitz_ids = await self.game.get_question_ids(blitz=True)
-        if len(questions_ids) == 0:
-            text = (
-                "В базе данных нет вопросов! Запуск игры невозможен. "
-                "Срочно попросите администратора добавить вопросы!"
-            )
-            await self.publish_message(text=text, peer_id=peer_id)
-            return
-        if len(questions_blitz_ids) == 0:
-            text = (
-                "В базе данных нет вопросов для блица! Запуск игры невозможен."
-                "Срочно попросите администратора добавить вопросы!"
-            )
-            await self.publish_message(text=text, peer_id=peer_id)
-            return
         if update.type == UpdateType.message_event:
             command = update.object.command
             event_id = update.object.event_id
@@ -127,9 +113,10 @@ class BotManager:
                     kwargs["event_data"] = {"type": "show_snackbar"}
                     kwargs["event_id"] = event_id
                 await self.publish_message(**kwargs)
+                return
             except Exception as err:
                 self.logger.info(err)
-        elif update.type == UpdateType.new_message:
+        elif update.type == UpdateType.new_message: ####
             text = update.object.text
             message = Message(user_id=user_id, peer_id=peer_id, text=text)
             try:
@@ -141,6 +128,7 @@ class BotManager:
                     "peer_id": peer_id,
                 }
                 await self.publish_message(**kwargs)
+                return
             except Exception as err:
                 self.logger.info(err)
 
@@ -374,6 +362,7 @@ class BotManager:
             thinking_timer //= BLITZ_THINKING_FACTOR
             captain_timer //= BLITZ_THINKING_FACTOR
         await asyncio.sleep(thinking_timer)
+        self.round_task[game_id] = None
         params = {"wait_status": Status.captain.value, "wait_time": 0}
         await self.game.update_game(id=game_id, **params)
         text = (
@@ -635,14 +624,14 @@ class BotManager:
         user = await self.game.get_player(vk_id=event.user_id)
         full_name = f"{user.name} {user.last_name}"
         game = await self.game.get_game(
-            chat_id=event.peer_id, status=Status.active.value
+            chat_id=event.peer_id, status=Status.active
         )
+        if game is None:
+            raise GameException("Некорректная команда.")
         command = event.command
         m = re.search(r"^speaker(\d+)", command)
         speaker_id = int(m.group(1))
         speaker = await self.game.get_player(speaker_id)
-        if game is None:
-            raise GameException("Некорректная команда.")
         if game.wait_status not in [Status.captain.value, Status.expired.value]:
             return
         await self.game.delete_speaker(game_id=game.id)
@@ -705,11 +694,14 @@ class BotManager:
         )
 
     async def top_handler(self, event: Event):
+        game = await self.game.get_game(
+            chat_id=event.peer_id, status=Status.active
+        )
+        if game is None:
+            GameException("Некорректная команда")
+        await self.verify_questions(game_id=game.id)
         user = await self.game.get_player(vk_id=event.user_id)
         full_name = f"{user.name} {user.last_name}"
-        game = await self.game.get_game(
-            chat_id=event.peer_id, status=Status.active.value
-        )
         round_ = game.round
         captain = await self.game.get_captain(id=game.id)
         if captain.vk_id != event.user_id:
@@ -730,17 +722,14 @@ class BotManager:
         await self.activate_top_timer(game_id=game.id, peer_id=event.peer_id)
 
     async def hello_message_handler(self, message: Message):
-        # user = await self.app.store.vk_api.get_vk_user_by_id(
-        #     user_id=message.user_id
-        # )
-        # full_name = f'{user["name"]} {user["last_name"]}'
+        await self.verify_questions()
         game = await self.game.get_game(
             chat_id=message.peer_id, status=Status.active
         )
         if game is not None:
             raise GameException("Некорректная команда. Игра уже идёт.")
         game = await self.game.get_game(
-            chat_id=message.peer_id, status=Status.registered.value
+            chat_id=message.peer_id, status=Status.registered
         )
         if game is None:
             text = "Добрый день! Присоединяйтесь к игре."
@@ -839,6 +828,7 @@ class BotManager:
                         await self.publish_message(
                             text=text, peer_id=message.peer_id
                         )
+                        await asyncio.sleep(2)
                         await self.proceed_blitz(
                             game_id=game.id, peer_id=message.peer_id
                         )
@@ -867,15 +857,15 @@ class BotManager:
 
     async def help_message_handler(self, message: Message):
         text = (
-            "Приветствую вас в игре Что? Где? Когда? Играет команда знатоков "
-            f"(в составе {self.rabbitmq.config.players} человек) против ведущего. "
+            "Приветствую вас в игре 'Что? Где? Когда?'! Играет команда знатоков "
+            f"(в составе {self.rabbitmq.config.game.players} человек) против ведущего. "
             f"Игра ведётся до {self.rabbitmq.config.game.max_points} очков. "
             f"На обдумывание и обсуждение вопросов даётся "
             f"{self.get_word_time(self.rabbitmq.config.game.thinking_timer)}, "
             f"после чего капитан должен выбрать игрока, отвечающего на вопрос. На это капитану даётся "
             f"{self.get_word_time(self.rabbitmq.config.game.captain_timer)}. На ввод ответа у игрока есть "
             f"{self.get_word_time(self.rabbitmq.config.game.answer_timer)}. Так же волчок может выбрать сектор блиц, "
-            f"предлагается ответить на 3 более простых вопроса, но время обсуждения и ответа в два раза меньше. "
+            f"где предлагается ответить на 3 более простых вопроса, но время обсуждения и ответа в два раза меньше. "
             f"Для регистрации в игре наберите '/hello'. Для просмотра счёта по игрокам '/scores'. Удачи в игре!"
         )
         await self.publish_message(text=text, peer_id=message.peer_id)
@@ -911,7 +901,7 @@ class BotManager:
                     text = "Игра завершена вручную"
             else:
                 text = "Игра для завершения не найдена"
-        await self.publish_message(text=text, peer_id=message.peer_id)
+        await self.publish_message(text=text, peer_id=message.peer_id, keyboard={})
 
     async def finish_game(self, game_id: int, peer_id: int, winner: str):
         game = await self.game.get_game_by_id(id=game_id)
@@ -928,7 +918,7 @@ class BotManager:
             )
             await self.publish_message(text=text, peer_id=peer_id)
         elif winner == "you":
-            text = "Вы выиграли! Искренне поздравляю! " + scores_text
+            text = "Вы выиграли!!! Искренне поздравляю! " + scores_text
             await self.publish_message(text=text, peer_id=peer_id)
         else:
             text = "Победила дружба:) Игра закончилась вничью. " + scores_text
@@ -967,19 +957,12 @@ class BotManager:
     @staticmethod
     async def choose_sector():
         seq = [True]
-        # seq.extend([False] * 1)
+        seq.extend([False] * 2)
         is_blitz = random.choice(seq)
-        print("!!!Blitz ", is_blitz)
         return is_blitz
 
     async def choose_question(self, game_id, blitz: bool = False):
-        questions_ids = await self.game.get_question_ids(blitz=blitz)
-        if len(questions_ids) == 0:
-            blitz_text = " для блица" if blitz else ""
-            GameException(
-                f"В базе данных закончились вопросы{blitz_text}! "
-                "Срочно попросите администратора внести новые вопросы!"
-            )
+        questions_ids = await self.game.get_question_ids(game_id=game_id, blitz=blitz)
         question_id = random.choice(questions_ids)
         params = {"current_question_id": question_id}
         await self.game.update_game(id=game_id, **params)
@@ -1019,6 +1002,22 @@ class BotManager:
             await self.game.update_player_score(
                 player_id=player.id, game_id=game_id
             )
+
+    async def verify_questions(self, game_id: int = None):
+        questions_ids = await self.game.get_question_ids(game_id=game_id)
+        questions_blitz_ids = await self.game.get_question_ids(game_id=game_id, blitz=True)
+        if len(questions_ids) == 0:
+            text = (
+                "В базе данных нет вопросов! Продолжение игры невозможно. "
+                "Нужно добавить вопросы."
+            )
+            GameException(text)
+        if len(questions_blitz_ids) < 3:
+            text = (
+                "В базе данных нет вопросов для блица! Продолжение игры невозможно. "
+                "Нужно добавить вопросы."
+            )
+            GameException(text)
 
     @staticmethod
     def get_word_time(t: int):

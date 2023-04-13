@@ -1,7 +1,7 @@
 import collections
 from datetime import datetime
 
-from sqlalchemy import and_, delete, func, select
+from sqlalchemy import and_, delete, func, select, cte
 from sqlalchemy.orm import joinedload
 
 from apps.base.utils import to_dataclass
@@ -511,25 +511,35 @@ class GameAccessor:
             ).scalar()
         return amount
 
-    async def get_question_ids(self, blitz: bool = False) -> list[int]:
+    async def get_question_ids(self, game_id: int = None, blitz: bool = False) -> list[int]:
         async with self.database.session.begin() as session:
-            ids = (
-                await session.execute(
-                    select(QuestionModel.id)
-                    .join(
-                        UsedQuestionsModel,
-                        UsedQuestionsModel.question_id == QuestionModel.id,
-                        isouter=True,
-                    )
-                    .filter(
-                        and_(
-                            UsedQuestionsModel.question_id == None,
-                            QuestionModel.blitz == blitz,
+            if game_id is not None:
+                cte_query = select(UsedQuestionsModel).\
+                    where(UsedQuestionsModel.game_id == game_id).\
+                    cte('used_q_query')
+                ids = (
+                    await session.execute(
+                        select(QuestionModel.id)
+                        .join(
+                            cte_query,
+                            cte_query.c.question_id == QuestionModel.id,
+                            isouter=True,
                         )
-                    )  # type: ignore # noqa: E711
-                )
-            ).scalars()
-
+                        .filter(
+                            and_(
+                                cte_query.c.question_id == None,
+                                QuestionModel.blitz == blitz
+                            )
+                        )  # type: ignore # noqa: E711
+                    )
+                ).scalars()
+            else:
+                ids = (
+                    await session.execute(
+                        select(QuestionModel.id)
+                        .filter(QuestionModel.blitz == blitz)
+                        )  # type: ignore # noqa: E711
+                    ).scalars()
         res = ids.unique().all()
         return res
 

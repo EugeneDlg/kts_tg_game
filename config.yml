@@ -5,7 +5,7 @@ bot:
   group_id: 218878450
 game:
   max_points: 2
-  players: 2
+  players: 3
   thinking_timer: 30
   captain_timer: 30
   answer_timer: 30

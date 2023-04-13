@@ -92,6 +92,10 @@ class GameSchema(Schema):
     players = fields.Nested(PlayerSchemaNotNested, many=True, required=True)
 
 
+class GameIdSchema(Schema):
+    id = fields.Int(required=False)
+
+
 class GameSchemaNotNested(Schema):
     id = fields.Int(required=False)
     chat_id = fields.Int(required=True)
@@ -131,6 +135,10 @@ class GameListSchemaBeforeResponse(Schema):
 
 class GameListResponseSchema(OkResponseSchema):
     data = fields.Nested(GameListSchemaBeforeResponse, required=True)
+
+
+class GameListStatusSchema(Schema):
+    status = fields.Str(required=True)
 
 
 class AnswerSchema(Schema):
