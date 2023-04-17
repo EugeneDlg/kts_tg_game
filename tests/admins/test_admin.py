@@ -2,13 +2,10 @@ import typing
 
 from tests.utils import ok_response
 
-if typing.TYPE_CHECKING:
-    from apps.api.app import Application
-
 
 class TestAdminLoginView:
-    async def test_create_on_startup(self, app: Application, config):
-        admin = await app.admins.get_by_email(config.admin.email)
+    async def test_create_on_startup(self, admins, config):
+        admin = await admins.get_by_email(config.admin.email)
         assert admin is not None
         assert admin.email == config.admin.email
         # Password must be hashed
