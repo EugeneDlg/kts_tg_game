@@ -1,4 +1,4 @@
-from app.game.models import Player, Game, GameScore
+from apps.game.models import Player, Game, GameScore
 
 
 def game2dict(game: Game):

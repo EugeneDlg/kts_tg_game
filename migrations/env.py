@@ -4,6 +4,7 @@ from pathlib import Path
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
+from dotenv import load_dotenv
 
 from config.config import setup_config
 from db.sqlalchemy_base import db
@@ -41,17 +42,21 @@ target_metadata = db.metadata
 def get_db_conn_URL():
     class Config:
         pass
-
+    load_dotenv(".env")
     config_path = os.path.join(
         Path(__file__).resolve().parent.parent, "config.yml"
     )
     config = Config()
+    test = os.getenv("TEST_MODE", None)
     setup_config(config, config_path=config_path)
     user = config.config.database.user
     password = config.config.database.password
     host = config.config.database.host
     port = config.config.database.port
     db = config.config.database.database
+    if test:
+        db = os.getenv("DB_TEST_NAME")
+
     db_connection_url = f"postgresql://{user}:{password}@{host}:{port}/{db}"
     print("db_connection_url: ", db_connection_url)
     return db_connection_url

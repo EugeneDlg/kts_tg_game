@@ -38,43 +38,16 @@ class BotManager:
         self.captain_task = {}
         self.answer_task = {}
 
-    @staticmethod
-    def deserialize(message: dict):
-        if message["type"] == "message_new":
-            return Update(
-                type=message["type"],
-                object=MessageUpdateObject(
-                    id=message["object"]["message"]["id"],
-                    user_id=message["object"]["message"]["from_id"],
-                    peer_id=message["object"]["message"]["peer_id"],
-                    text=message["object"]["message"]["text"],
-                ),
-            )
-        if message["type"] == "message_event":
-            return Update(
-                type=message["type"],
-                object=EventUpdateObject(
-                    event_id=message["object"]["event_id"],
-                    user_id=message["object"]["user_id"],
-                    peer_id=message["object"]["peer_id"],
-                    command=message["object"]["payload"]["command"],
-                ),
-            )
-        if message["type"] == UpdateType.vk_request:
-            return Update(
-                type=message["type"],
-                object=InfoUpdateObject(
-                    vk_user_request=message[UpdateType.vk_request],
-                    name=message["first_name"],
-                    last_name=message["last_name"],
-                    peer_id=message["peer_id"],
-                    event_id=message["event_id"],
-                ),
-            )
-
     async def handle_updates(self, update: Update):
+        """
+        The intro handle method for all incoming updates
+        :param update:
+        :return:
+        """
         update = self.deserialize(update)
-        self.logger.info(f"!!!Bot: {str(update.type)}")
+        if update is None:
+            return
+        # processes VK user info response
         if update.type == UpdateType.vk_request:
             vk_user_request = update.object.vk_user_request
             name = update.object.name
@@ -90,6 +63,7 @@ class BotManager:
             )
             await self.user_info_handler(message)
             return
+        # processes an event message from chat
         user_id = update.object.user_id
         peer_id = update.object.peer_id
         if update.type == UpdateType.message_event:
@@ -116,7 +90,8 @@ class BotManager:
                 return
             except Exception as err:
                 self.logger.info(err)
-        elif update.type == UpdateType.new_message: ####
+        # processes a new message from chat
+        elif update.type == UpdateType.new_message:
             text = update.object.text
             message = Message(user_id=user_id, peer_id=peer_id, text=text)
             try:
@@ -131,156 +106,6 @@ class BotManager:
                 return
             except Exception as err:
                 self.logger.info(err)
-
-    def make_message(
-        self,
-        text: str,
-        peer_id: int,
-        user_id: int = None,
-        keyboard: dict = None,
-        event_data: dict = None,
-        event_id: str = None,
-        vk_user_request: int = None,
-    ):
-        if keyboard is not None:
-            buttons = []
-            if keyboard.get("buttons") is not None:
-                for button in keyboard["buttons"]:
-                    _button = self.make_button(
-                        {
-                            "type": "callback",
-                            "payload": {"command": button["command"]},
-                            "label": button["label"],
-                        },
-                        color="primary",
-                    )
-                    buttons.append([_button])
-            inline = True if keyboard.get("inline") else False
-            one_time = True if keyboard.get("one_time") else False
-            keyboard = json.dumps(
-                self.build_keyboard(
-                    buttons=buttons, inline=inline, one_time=one_time
-                )
-            )
-        return Message(
-            user_id=user_id,
-            peer_id=peer_id,
-            text=text,
-            keyboard=keyboard,
-            event_data=event_data,
-            event_id=event_id,
-            vk_user_request=vk_user_request,
-        )
-
-    @staticmethod
-    def build_keyboard(
-        buttons: list[list[dict]],
-        inline: bool | None = False,
-        one_time: bool | None = False,
-    ) -> dict:
-        keyboard = {"buttons": buttons, "one_time": one_time, "inline": inline}
-        return keyboard
-
-    @staticmethod
-    def make_button(params: dict, color: str | None = None) -> dict:
-        button = {"action": params}
-        if color is not None:
-            button["color"] = color
-        return button
-
-    async def register_game_message(self, text, user_id: int, peer_id: int):
-        await self.publish_message(
-            text=text,
-            user_id=user_id,
-            peer_id=peer_id,
-            keyboard={
-                "buttons": [
-                    {
-                        "command": Command.register["command"],
-                        "label": Command.register["label"],
-                    }
-                ]
-            },
-        )
-
-    async def publish_start_message(self, text, user_id: int, peer_id: int):
-        await self.publish_message(
-            text=text,
-            user_id=user_id,
-            peer_id=peer_id,
-            keyboard={
-                "buttons": [
-                    {
-                        "command": Command.start["command"],
-                        "label": Command.start["label"],
-                    }
-                ]
-            },
-        )
-
-    async def publish_speaker_selection_message(
-        self, game_id: int, peer_id: int, text: str
-    ):
-        captain = await self.game.get_captain(id=game_id)
-        game = await self.game.get_game_by_id(id=game_id)
-        other_players = [
-            player for player in game.players if player.vk_id != captain.vk_id
-        ]
-        buttons = [
-            {
-                "command": f"speaker{player.vk_id}",
-                "label": f"{player.name} {player.last_name}",
-            }
-            for player in other_players
-        ]
-        buttons.append(
-            {"command": f"speaker{captain.vk_id}", "label": "Капитан"}
-        )
-        keyboard = {"buttons": buttons}
-        await self.publish_message(
-            text=text, peer_id=peer_id, keyboard=keyboard
-        )
-
-    async def next_round_message(self, peer_id: int):
-        text = "Следующий раунд!"
-        await self.publish_message(text=text, peer_id=peer_id)
-
-    async def spin_top_message(self, peer_id: int):
-        text = "Капитан, крутите волчок, чтобы выбрать вопрос"
-        await self.publish_message(
-            text=text,
-            peer_id=peer_id,
-            keyboard={
-                "buttons": [
-                    {
-                        "command": Command.top["command"],
-                        "label": Command.top["label"],
-                    }
-                ]
-            },
-        )
-
-    async def publish_message(
-        self,
-        text: str = None,
-        peer_id: int = None,
-        keyboard: dict = None,
-        user_id: int = None,
-        event_data: dict = None,
-        event_id: str = None,
-        vk_user_request: int = None,
-    ):
-        message = self.make_message(
-            text=text,
-            peer_id=peer_id,
-            keyboard=keyboard,
-            user_id=user_id,
-            event_data=event_data,
-            event_id=event_id,
-            vk_user_request=vk_user_request,
-        )
-        await self.rabbitmq.publish(message.serialize())
-        # await self.app.store.vk_api.publish_in_sender_queue(message)
 
     async def event_handler(self, event: Event):
         command = str(event.command)
@@ -309,6 +134,12 @@ class BotManager:
             await self.answer_message_handler(message)
 
     async def user_info_handler(self, message: Message):
+        """
+        Requests information about a user from VK and proceeds game register process.
+        It is used only for registering in a game
+        :param message:
+        :return:
+        """
         vk_id = message.vk_user_request
         name = message.name
         last_name = message.last_name
@@ -322,105 +153,6 @@ class BotManager:
             event_id=event_id, user_id=vk_id, peer_id=peer_id, command=command
         )
         await self.register_handler(event=event)
-
-    async def activate_top_timer(self, game_id: int, peer_id: int):
-        task = asyncio.create_task(
-            self.spin_top(game_id=game_id, peer_id=peer_id)
-        )
-        self.top_task[game_id] = task
-
-    async def spin_top(self, game_id: int, peer_id: int):
-        timer = self.rabbitmq.config.game.top_timer
-        await asyncio.sleep(timer)
-        is_blitz = await self.choose_sector()
-        if is_blitz:
-            await self.start_blitz(game_id=game_id, peer_id=peer_id)
-            return
-        await self.choose_question(game_id)
-        game = await self.game.get_game_by_id(id=game_id)
-        question = await self.game.get_question(game.current_question_id)
-        text = f'Внимание, вопрос! "{question.text}".'
-        await self.publish_message(text=text, peer_id=peer_id)
-        await asyncio.sleep(2)
-        text = "Время пошло!"
-        await self.publish_message(text=text, peer_id=peer_id)
-        params = {"wait_status": Status.thinking, "wait_time": int(time.time())}
-        await self.game.update_game(id=game.id, **params)
-        await self.activate_thinking_timer(game_id=game_id, peer_id=peer_id)
-
-    async def activate_thinking_timer(self, game_id: int, peer_id: int):
-        task = asyncio.create_task(
-            self.think_and_choose_speaker(game_id=game_id, peer_id=peer_id)
-        )
-        self.round_task[game_id] = task
-
-    async def think_and_choose_speaker(self, game_id: int, peer_id: int):
-        game = await self.game.get_game_by_id(game_id)
-        captain_timer = self.rabbitmq.config.game.captain_timer
-        thinking_timer = self.rabbitmq.config.game.thinking_timer
-        if game.blitz_round > 0:
-            thinking_timer //= BLITZ_THINKING_FACTOR
-            captain_timer //= BLITZ_THINKING_FACTOR
-        await asyncio.sleep(thinking_timer)
-        self.round_task[game_id] = None
-        params = {"wait_status": Status.captain.value, "wait_time": 0}
-        await self.game.update_game(id=game_id, **params)
-        text = (
-            f"Время на обсуждение вышло. Капитан, выберите отвечающего. У вас есть "
-            f"{self.get_word_time(captain_timer)}."
-        )
-        await self.publish_speaker_selection_message(
-            game_id=game_id, peer_id=peer_id, text=text
-        )
-        await self.activate_captain_timer(
-            game_id=game_id, peer_id=peer_id, timer=captain_timer
-        )
-
-    async def activate_captain_timer(
-        self, game_id: int, peer_id: int, timer: int
-    ):
-        task = asyncio.create_task(
-            self.wait_and_continue(
-                game_id=game_id, peer_id=peer_id, timer=timer
-            )
-        )
-        self.captain_task[game_id] = task
-
-    async def activate_answer_timer(
-        self, game_id: int, peer_id: int, timer: int
-    ):
-        task = asyncio.create_task(
-            self.wait_and_continue(
-                game_id=game_id, peer_id=peer_id, timer=timer
-            )
-        )
-        self.answer_task[game_id] = task
-
-    async def wait_and_continue(self, game_id: int, peer_id: int, timer: int):
-        await asyncio.sleep(timer)
-        game = await self.game.get_game_by_id(game_id)
-        new_my_points = game.my_points + 1
-        params = {
-            "wait_status": Status.expired.value,
-            "wait_time": 0,
-            "my_points": new_my_points,
-            "blitz_round": 0,
-        }
-        await self.game.update_game(id=game_id, **params)
-        text = (
-            f"К сожалению, время истекло. Очко за этот раунд переходит мне. "
-            f"Счёт {new_my_points}:{game.players_points}"
-        )
-        await self.publish_message(text=text, peer_id=peer_id, keyboard={})
-        if new_my_points == self.rabbitmq.config.game.max_points:
-            await self.finish_game(
-                game_id=game_id, peer_id=peer_id, winner="me"
-            )
-            return
-        await asyncio.sleep(2)
-        await self.next_round_message(peer_id=peer_id)
-        await asyncio.sleep(1)
-        await self.spin_top_message(peer_id=peer_id)
 
     async def before_register_handler(self, event: Event):
         user = await self.game.get_player(vk_id=event.user_id)
@@ -562,13 +294,6 @@ class BotManager:
                         peer_id=event.peer_id,
                     )
 
-    async def request_user_info(self, event: Event):
-        await self.publish_message(
-            vk_user_request=event.user_id,
-            peer_id=event.peer_id,
-            event_id=event.event_id,
-        )
-
     async def start_handler(self, event: Event):
         user = await self.game.get_player(vk_id=event.user_id)
         full_name = f"{user.name} {user.last_name}"
@@ -669,29 +394,6 @@ class BotManager:
                 peer_id=event.peer_id,
                 timer=self.rabbitmq.config.game.answer_timer // factor,
             )
-
-    async def again_game_handler(self, event):
-        text = f"Играем ещё раз"
-        await self.publish_message(
-            text=text,
-            user_id=event.user_id,
-            peer_id=event.peer_id,
-            event_id=event.event_id,
-            event_data={"type": "show_snackbar"},
-        )
-        await asyncio.sleep(1)
-        text = "Идёт регистрация участников игры"
-        keyboard = {
-            "buttons": [
-                {
-                    "command": Command.register["command"],
-                    "label": Command.register["label"],
-                }
-            ]
-        }
-        await self.publish_message(
-            text=text, peer_id=event.peer_id, keyboard=keyboard
-        )
 
     async def top_handler(self, event: Event):
         game = await self.game.get_game(
@@ -857,7 +559,7 @@ class BotManager:
 
     async def help_message_handler(self, message: Message):
         text = (
-            "Приветствую вас в игре 'Что? Где? Когда?'! Играет команда знатоков "
+            "Приветствую вас в игре 'Что? Где? Когда?'\N{winking face}\n Играет команда знатоков "
             f"(в составе {self.rabbitmq.config.game.players} человек) против ведущего. "
             f"Игра ведётся до {self.rabbitmq.config.game.max_points} очков. "
             f"На обдумывание и обсуждение вопросов даётся "
@@ -902,6 +604,341 @@ class BotManager:
             else:
                 text = "Игра для завершения не найдена"
         await self.publish_message(text=text, peer_id=message.peer_id, keyboard={})
+
+    async def again_game_handler(self, event):
+        """
+        Used when the game is over and a user wants to start one more time
+        :param event:
+        :return:
+        """
+        text = f"Играем ещё раз"
+        await self.publish_message(
+            text=text,
+            user_id=event.user_id,
+            peer_id=event.peer_id,
+            event_id=event.event_id,
+            event_data={"type": "show_snackbar"},
+        )
+        await asyncio.sleep(1)
+        text = "Идёт регистрация участников игры"
+        keyboard = {
+            "buttons": [
+                {
+                    "command": Command.register["command"],
+                    "label": Command.register["label"],
+                }
+            ]
+        }
+        await self.publish_message(
+            text=text, peer_id=event.peer_id, keyboard=keyboard
+        )
+
+    async def activate_top_timer(self, game_id: int, peer_id: int):
+        """
+        Creates acyncio task for spinning the top
+        :param game_id:
+        :param peer_id:
+        :return:
+        """
+        task = asyncio.create_task(
+            self.spin_top(game_id=game_id, peer_id=peer_id)
+        )
+        self.top_task[game_id] = task
+
+    async def spin_top(self, game_id: int, peer_id: int):
+        """
+        Spins the spinning top to choose a sector
+        :param game_id:
+        :param peer_id:
+        :return:
+        """
+        timer = self.rabbitmq.config.game.top_timer
+        await asyncio.sleep(timer)
+        is_blitz = await self.choose_sector()
+        if is_blitz:
+            await self.start_blitz(game_id=game_id, peer_id=peer_id)
+            return
+        await self.choose_question(game_id)
+        game = await self.game.get_game_by_id(id=game_id)
+        question = await self.game.get_question(game.current_question_id)
+        text = f'Внимание, вопрос! "{question.text}".'
+        await self.publish_message(text=text, peer_id=peer_id)
+        await asyncio.sleep(2)
+        text = "Время пошло!"
+        await self.publish_message(text=text, peer_id=peer_id)
+        params = {"wait_status": Status.thinking, "wait_time": int(time.time())}
+        await self.game.update_game(id=game.id, **params)
+        await self.activate_thinking_timer(game_id=game_id, peer_id=peer_id)
+
+    async def activate_thinking_timer(self, game_id: int, peer_id: int):
+        """
+        Creates asyncio task when the top has chosen a sector and a question and so
+        the players are thinking and discussing the question
+        :param game_id:
+        :param peer_id:
+        :return:
+        """
+        task = asyncio.create_task(
+            self.think_and_choose_speaker(game_id=game_id, peer_id=peer_id)
+        )
+        self.round_task[game_id] = task
+
+    async def think_and_choose_speaker(self, game_id: int, peer_id: int):
+        """
+        The players are thinking and discussing the question
+        :param game_id:
+        :param peer_id:
+        :return:
+        """
+        game = await self.game.get_game_by_id(game_id)
+        captain_timer = self.rabbitmq.config.game.captain_timer
+        thinking_timer = self.rabbitmq.config.game.thinking_timer
+        if game.blitz_round > 0:
+            thinking_timer //= BLITZ_THINKING_FACTOR
+            captain_timer //= BLITZ_THINKING_FACTOR
+        await asyncio.sleep(thinking_timer)
+        self.round_task[game_id] = None
+        params = {"wait_status": Status.captain.value, "wait_time": 0}
+        await self.game.update_game(id=game_id, **params)
+        text = (
+            f"Время на обсуждение вышло. Капитан, выберите отвечающего. У вас есть "
+            f"{self.get_word_time(captain_timer)}."
+        )
+        await self.publish_speaker_selection_message(
+            game_id=game_id, peer_id=peer_id, text=text
+        )
+        await self.activate_captain_timer(
+            game_id=game_id, peer_id=peer_id, timer=captain_timer
+        )
+
+    async def activate_captain_timer(
+        self, game_id: int, peer_id: int, timer: int
+    ):
+        """
+        Creates a task for captain choosing a speaker
+        :param game_id:
+        :param peer_id:
+        :param timer:
+        :return:
+        """
+        task = asyncio.create_task(
+            self.wait_and_continue(
+                game_id=game_id, peer_id=peer_id, timer=timer
+            )
+        )
+        self.captain_task[game_id] = task
+
+    async def activate_answer_timer(
+        self, game_id: int, peer_id: int, timer: int
+    ):
+        """
+        Creates a task for answering a question
+        :param game_id:
+        :param peer_id:
+        :param timer:
+        :return:
+        """
+        task = asyncio.create_task(
+            self.wait_and_continue(
+                game_id=game_id, peer_id=peer_id, timer=timer
+            )
+        )
+        self.answer_task[game_id] = task
+
+    async def wait_and_continue(self, game_id: int, peer_id: int, timer: int):
+        """
+        Waits while a speaker is entering an answer
+        and finish a round after it expires
+        :param game_id:
+        :param peer_id:
+        :param timer:
+        :return:
+        """
+        await asyncio.sleep(timer)
+        game = await self.game.get_game_by_id(game_id)
+        new_my_points = game.my_points + 1
+        params = {
+            "wait_status": Status.expired.value,
+            "wait_time": 0,
+            "my_points": new_my_points,
+            "blitz_round": 0,
+        }
+        await self.game.update_game(id=game_id, **params)
+        text = (
+            f"К сожалению, время истекло. Очко за этот раунд переходит мне. "
+            f"Счёт {new_my_points}:{game.players_points}"
+        )
+        await self.publish_message(text=text, peer_id=peer_id, keyboard={})
+        if new_my_points == self.rabbitmq.config.game.max_points:
+            await self.finish_game(
+                game_id=game_id, peer_id=peer_id, winner="me"
+            )
+            return
+        await asyncio.sleep(2)
+        await self.next_round_message(peer_id=peer_id)
+        await asyncio.sleep(1)
+        await self.spin_top_message(peer_id=peer_id)
+
+    def make_message(
+        self,
+        text: str,
+        peer_id: int,
+        user_id: int = None,
+        keyboard: dict = None,
+        event_data: dict = None,
+        event_id: str = None,
+        vk_user_request: int = None,
+    ):
+        """
+        Makes an outgoing message to publish
+        :param text:
+        :param peer_id:
+        :param user_id:
+        :param keyboard:
+        :param event_data:
+        :param event_id:
+        :param vk_user_request:
+        :return:
+        """
+        if keyboard is not None:
+            buttons = []
+            if keyboard.get("buttons") is not None:
+                for button in keyboard["buttons"]:
+                    _button = self.make_button(
+                        {
+                            "type": "callback",
+                            "payload": {"command": button["command"]},
+                            "label": button["label"],
+                        },
+                        color="primary",
+                    )
+                    buttons.append([_button])
+            inline = True if keyboard.get("inline") else False
+            one_time = True if keyboard.get("one_time") else False
+            keyboard = json.dumps(
+                self.build_keyboard(
+                    buttons=buttons, inline=inline, one_time=one_time
+                )
+            )
+        return Message(
+            user_id=user_id,
+            peer_id=peer_id,
+            text=text,
+            keyboard=keyboard,
+            event_data=event_data,
+            event_id=event_id,
+            vk_user_request=vk_user_request,
+        )
+
+    @staticmethod
+    def build_keyboard(
+        buttons: list[list[dict]],
+        inline: bool | None = False,
+        one_time: bool | None = False,
+    ) -> dict:
+        keyboard = {"buttons": buttons, "one_time": one_time, "inline": inline}
+        return keyboard
+
+    @staticmethod
+    def make_button(params: dict, color: str | None = None) -> dict:
+        button = {"action": params}
+        if color is not None:
+            button["color"] = color
+        return button
+
+    async def register_game_message(self, text, user_id: int, peer_id: int):
+        await self.publish_message(
+            text=text,
+            user_id=user_id,
+            peer_id=peer_id,
+            keyboard={
+                "buttons": [
+                    {
+                        "command": Command.register["command"],
+                        "label": Command.register["label"],
+                    }
+                ]
+            },
+        )
+
+    async def publish_start_message(self, text, user_id: int, peer_id: int):
+        await self.publish_message(
+            text=text,
+            user_id=user_id,
+            peer_id=peer_id,
+            keyboard={
+                "buttons": [
+                    {
+                        "command": Command.start["command"],
+                        "label": Command.start["label"],
+                    }
+                ]
+            },
+        )
+
+    async def publish_speaker_selection_message(
+        self, game_id: int, peer_id: int, text: str
+    ):
+        captain = await self.game.get_captain(id=game_id)
+        game = await self.game.get_game_by_id(id=game_id)
+        other_players = [
+            player for player in game.players if player.vk_id != captain.vk_id
+        ]
+        buttons = [
+            {
+                "command": f"speaker{player.vk_id}",
+                "label": f"{player.name} {player.last_name}",
+            }
+            for player in other_players
+        ]
+        buttons.append(
+            {"command": f"speaker{captain.vk_id}", "label": "Капитан"}
+        )
+        keyboard = {"buttons": buttons}
+        await self.publish_message(
+            text=text, peer_id=peer_id, keyboard=keyboard
+        )
+
+    async def next_round_message(self, peer_id: int):
+        text = "Следующий раунд!"
+        await self.publish_message(text=text, peer_id=peer_id)
+
+    async def spin_top_message(self, peer_id: int):
+        text = "Капитан, крутите волчок, чтобы выбрать вопрос"
+        await self.publish_message(
+            text=text,
+            peer_id=peer_id,
+            keyboard={
+                "buttons": [
+                    {
+                        "command": Command.top["command"],
+                        "label": Command.top["label"],
+                    }
+                ]
+            },
+        )
+
+    async def publish_message(
+        self,
+        text: str = None,
+        peer_id: int = None,
+        keyboard: dict = None,
+        user_id: int = None,
+        event_data: dict = None,
+        event_id: str = None,
+        vk_user_request: int = None,
+    ):
+        message = self.make_message(
+            text=text,
+            peer_id=peer_id,
+            keyboard=keyboard,
+            user_id=user_id,
+            event_data=event_data,
+            event_id=event_id,
+            vk_user_request=vk_user_request,
+        )
+        await self.rabbitmq.publish(message.serialize())
+        # await self.app.store.vk_api.publish_in_sender_queue(message)
 
     async def finish_game(self, game_id: int, peer_id: int, winner: str):
         game = await self.game.get_game_by_id(id=game_id)
@@ -953,6 +990,13 @@ class BotManager:
             points = await self.game.get_total_score(player_id=player.id)
             scores += f"{player.name} {player.last_name} - {points}; "
         return scores
+
+    async def request_user_info(self, event: Event):
+        await self.publish_message(
+            vk_user_request=event.user_id,
+            peer_id=event.peer_id,
+            event_id=event.event_id,
+        )
 
     @staticmethod
     async def choose_sector():
@@ -1020,7 +1064,7 @@ class BotManager:
             GameException(text)
 
     @staticmethod
-    def get_word_time(t: int):
+    def get_word_time(t: int) -> str:
         if t <= 0:
             return "0 секунд"
         result = ""
@@ -1055,6 +1099,40 @@ class BotManager:
         if num == 1:
             return "одного участника"
         return f"{num} участников"
+
+    @staticmethod
+    def deserialize(message: dict) -> Update:
+        if message["type"] == "message_new":
+            return Update(
+                type=message["type"],
+                object=MessageUpdateObject(
+                    id=message["object"]["message"]["id"],
+                    user_id=message["object"]["message"]["from_id"],
+                    peer_id=message["object"]["message"]["peer_id"],
+                    text=message["object"]["message"]["text"],
+                ),
+            )
+        if message["type"] == "message_event":
+            return Update(
+                type=message["type"],
+                object=EventUpdateObject(
+                    event_id=message["object"]["event_id"],
+                    user_id=message["object"]["user_id"],
+                    peer_id=message["object"]["peer_id"],
+                    command=message["object"]["payload"]["command"],
+                ),
+            )
+        if message["type"] == UpdateType.vk_request:
+            return Update(
+                type=message["type"],
+                object=InfoUpdateObject(
+                    vk_user_request=message[UpdateType.vk_request],
+                    name=message["first_name"],
+                    last_name=message["last_name"],
+                    peer_id=message["peer_id"],
+                    event_id=message["event_id"],
+                ),
+            )
 
 
 class GameException(Exception):
