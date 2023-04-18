@@ -6,13 +6,13 @@ from unittest.mock import AsyncMock
 
 import pytest
 from aiohttp.test_utils import TestClient, loop_context
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.admin.models import Admin, AdminModel
 from apps.admin.accessor.accessor import AdminAccessor
-from apps.game.accessor.accessor import GameAccessor
 from apps.api.app import setup_app
-from apps.game.models import Game, GameModel, PlayerModel, Player
+from apps.game.models import Game, GameModel, PlayerModel, Player, AnswerModel
 from config.config import Config
 from db.database import Database
 
@@ -58,11 +58,11 @@ def db_session(server):
 @pytest.fixture(autouse=True, scope="function")
 async def clear_db(server):
     yield
-
-    try:
-        await server.database.clear()
-    except Exception as err:
-        logging.warning(err)
+    await server.database.clear()
+    async with server.database.session() as session:
+        await session.execute(text(f"TRUNCATE TABLE questions CASCADE"))
+    # except Exception as err:
+    #     logging.warning(err)
 
 
 @pytest.fixture
@@ -185,3 +185,9 @@ async def game_2(db_session: AsyncSession) -> Game:
         speaker=[],
         players=new_players_dc,
     )
+
+
+@pytest.fixture
+def answer_1():
+    text = "This is an answer"
+    return AnswerModel(text=text)
