@@ -53,7 +53,7 @@ class GameAccessor:
             session.add(game)
         return game
 
-    async def get_game(self, chat_id: int, status: str) -> Game:
+    async def get_game(self, chat_id: int, status: str = "registered") -> Game:
         game = await self._get_game_as_orm_tuple(chat_id=chat_id, status=status)
         return self.games_from_sql(game, many=False)
 
@@ -275,11 +275,29 @@ class GameAccessor:
             return None
         return player
 
+    async def get_player_by_name(self, name: str, last_name: str) -> Player:
+        player = await self._get_player_by_name_as_orm_model(
+            name=name, last_name=last_name
+        )
+        if player is None:
+            return None
+        return player
+
     async def _get_player_as_orm_model(self, vk_id: int) -> PlayerModel:
         async with self.database.session.begin() as session:
             player = (
                 await session.execute(
                     select(PlayerModel).where(PlayerModel.vk_id == vk_id)
+                )
+            ).scalar()
+        return player
+
+    async def _get_player_by_name_as_orm_model(self, name: str, last_name: str) -> PlayerModel:
+        async with self.database.session.begin() as session:
+            player = (
+                await session.execute(
+                    select(PlayerModel).where(PlayerModel.name == name,
+                                              PlayerModel.last_name == last_name)
                 )
             ).scalar()
         return player

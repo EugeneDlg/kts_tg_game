@@ -62,11 +62,12 @@ def setup_config(app: "Application", config_path: str):
         raw_config = yaml.safe_load(f)
 
     load_dotenv(".env")
+    test_mode = int(os.getenv("TEST_MODE"))
     db_user = os.getenv("DB_USER")
     db_pass = os.getenv("DB_PASS")
     db_host = os.getenv("DB_HOST")
     db_port = os.getenv("DB_PORT", 5432)
-    db_name = os.getenv("DB_NAME")
+    db_name = os.getenv("DB_TEST_NAME") if test_mode else os.getenv("DB_NAME")
     rabbitmq_host = os.getenv("RABBITMQ_HOST")
     rabbitmq_user = os.getenv("RABBITMQ_USER")
     rabbitmq_pass = os.getenv("RABBITMQ_PASS")
