@@ -13,10 +13,10 @@ def game2dict(game: Game):
 def player2dict(player: Player):
     return {
         "id": int(player.id),
-        "vk_id": str(player.vk_id),
-        "name": int(player.name),
-        "last_name": int(player.last_name),
-        "scores": [score2dict(score) for score in player.scores],
+        "vk_id": player.vk_id,
+        "name": player.name,
+        "last_name": player.last_name,
+        # "scores": [score2dict(score) for score in player.scores],
     }
 
 

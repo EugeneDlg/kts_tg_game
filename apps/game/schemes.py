@@ -88,8 +88,13 @@ class ScoreSchemaNotNested(Schema):
 class GameSchema(Schema):
     id = fields.Int(required=False)
     chat_id = fields.Int(required=True)
-    status = fields.Str(required=True)
+    status = fields.Str(required=False)
     players = fields.Nested(PlayerSchemaNotNested, many=True, required=True)
+
+
+class GameGetSchema(Schema):
+    chat_id = fields.Int(required=True)
+    status = fields.Str(required=True)
 
 
 class GameIdSchema(Schema):

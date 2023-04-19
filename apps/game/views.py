@@ -17,6 +17,7 @@ from apps.game.schemes import (
     GameListSchemaBeforeResponse,
     GameResponseSchema,
     GameSchema,
+    GameGetSchema,
     GameIdSchema,
     GameSchemaBeforeResponse,
     GameSchemaForCreateBeforeResponse,
@@ -51,7 +52,7 @@ class GameAddView(View):
     @check_auth
     async def post(self):
         data = self.request["data"]
-        chat_id = data["chat_id"]
+        chat_id = str(data["chat_id"])
         players = data["players"]
         created_at = dt.datetime.now()
         db_players = []
@@ -63,13 +64,13 @@ class GameAddView(View):
         if game is not None:
             raise HTTPConflict(text="Game with this ID already exists")
         for player in players:
-            vk_id = player["vk_id"]
+            vk_id = int(player["vk_id"])
             name = player["name"]
             last_name = player["last_name"]
-            db_player_by_id = await self.app.game.get_player_by_vk_id(
+            db_player_by_id = await self.app.game.get_player(
                 vk_id=vk_id
             )
-            db_player_by_names = await self.app.game.get_player_by_names(
+            db_player_by_names = await self.app.game.get_player_by_name(
                 name=name, last_name=last_name
             )
             if db_player_by_id is None and db_player_by_names is None:
@@ -108,7 +109,7 @@ class GameGetView(View):
                     "For a game with status 'Active' or 'Registered' the result will contain "
                     "an array with only one game. For status 'Finished' the array might contain several games",
     )
-    @request_schema(GameSchema)
+    @request_schema(GameGetSchema)
     @response_schema(GameResponseSchema, 200)
     @check_auth
     async def get(self):
