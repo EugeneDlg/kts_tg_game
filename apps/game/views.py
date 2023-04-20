@@ -166,8 +166,8 @@ class GameListView(View):
     async def get(self):
         query = self.request.rel_url.query
         status = query.get("status")
-        if status is None:
-            raise HTTPBadRequest(text="Invalid Game status")
+        if status is not None:
+            status = status.strip().lower()
         games = await self.app.game.list_games(status=status)
         data = {"games": games}
         return json_response(data=GameListSchemaBeforeResponse().dump(data))

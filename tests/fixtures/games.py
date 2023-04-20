@@ -146,7 +146,7 @@ async def create_question_1(db_session: AsyncSession, question_1) -> Game:
 
 @pytest.fixture
 async def question_1(answer_1):
-    text = "This a question number 1"
+    text = "This a question number 1".lower()
     blitz = False
     question = QuestionModel(text=text, blitz=blitz, answer=[answer_1])
     return question
@@ -154,5 +154,5 @@ async def question_1(answer_1):
 
 @pytest.fixture
 def answer_1():
-    text = "This is an answer foe question number 1"
+    text = "This is an answer foe question number 1".lower()
     return AnswerModel(text=text)
