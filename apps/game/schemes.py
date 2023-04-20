@@ -113,8 +113,9 @@ class GameSchemaBeforeResponse(Schema):
     status = fields.Str(required=True)
     created_at = fields.DateTime(required=True)
     my_points = fields.Int(required=True)
-    player_points = fields.Int(required=True)
+    players_points = fields.Int(required=True)
     round = fields.Int(required=True)
+    blitz_round = fields.Int(required=True)
     current_question_id = fields.Str(required=True)
     players = fields.Nested(
         PlayerScoreSchema2BeforeResponse, many=True, required=True
@@ -143,7 +144,7 @@ class GameListResponseSchema(OkResponseSchema):
 
 
 class GameListStatusSchema(Schema):
-    status = fields.Str(required=True)
+    status = fields.Str(required=False)
 
 
 class AnswerSchema(Schema):
